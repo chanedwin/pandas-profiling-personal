@@ -47,12 +47,12 @@ class Spearman(Correlation):
 
     @compute.register(PandasDataFrame)
     @staticmethod
-    def _(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="spearman")
 
     @compute.register(SparkDataFrame)
     @staticmethod
-    def _(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         TODO - Optimise this in Spark, cheating for now
 
@@ -97,12 +97,12 @@ class Pearson(Correlation):
 
     @compute.register(PandasDataFrame)
     @staticmethod
-    def _(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="pearson")
 
     @compute.register(SparkDataFrame)
     @staticmethod
-    def _(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         TODO - Optimise this in Spark, cheating for now
 
@@ -148,12 +148,12 @@ class Kendall(Correlation):
 
     @compute.register(PandasDataFrame)
     @staticmethod
-    def _(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="kendall")
 
     @compute.register(SparkDataFrame)
     @staticmethod
-    def _(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         Use pandasUDF to compute this first, but probably can be optimised further
 
@@ -273,7 +273,7 @@ class Cramers(Correlation):
 
     @compute.register(PandasDataFrame)
     @staticmethod
-    def _(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         threshold = config["categorical_maximum_correlation_distinct"].get(int)
 
         categoricals = {
@@ -306,7 +306,7 @@ class Cramers(Correlation):
 
     @compute.register(SparkDataFrame)
     @staticmethod
-    def _(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
 
         Args:
@@ -422,7 +422,7 @@ class PhiK(Correlation):
 
     @compute.register(PandasDataFrame)
     @staticmethod
-    def _(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         threshold = config["categorical_maximum_correlation_distinct"].get(int)
         intcols = {
             key
@@ -455,7 +455,7 @@ class PhiK(Correlation):
 
     @compute.register(SparkDataFrame)
     @staticmethod
-    def _(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
+    def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         Use pandasUDF to compute this first, but probably can be optimised further
 
@@ -479,12 +479,12 @@ class PhiK(Correlation):
             if value["type"] == SparkNumeric and 1 < value["n_distinct"]
         }
 
-        selcols = {
+        supportedcols = {
             key
             for key, value in summary.items()
             if value["type"] != Unsupported and 1 < value["n_distinct"] <= threshold
         }
-        selcols = list(selcols.union(intcols))
+        selcols = list(supportedcols.union(intcols))
 
         if len(selcols) <= 1:
             return None

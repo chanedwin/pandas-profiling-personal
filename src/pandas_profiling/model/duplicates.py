@@ -17,7 +17,9 @@ def get_duplicates(df: GenericDataFrame, supported_columns) -> Optional[pd.DataF
 
 
 @get_duplicates.register(PandasDataFrame)
-def _(df: PandasDataFrame, supported_columns) -> Optional[pd.DataFrame]:
+def _get_duplicates_pandas(
+    df: PandasDataFrame, supported_columns
+) -> Optional[pd.DataFrame]:
     """Obtain the most occurring duplicate rows in the DataFrame.
 
     Args:
@@ -30,13 +32,15 @@ def _(df: PandasDataFrame, supported_columns) -> Optional[pd.DataFrame]:
     n_head = config["duplicates"]["head"].get(int)
 
     if n_head > 0 and supported_columns:
-        return df.groupby_get_n_largest(supported_columns, n_head)
+        return df.groupby_get_n_largest_dups(supported_columns, n_head)
 
     return None
 
 
 @get_duplicates.register(SparkDataFrame)
-def _(df: SparkDataFrame, supported_columns) -> Optional[pd.DataFrame]:
+def _get_duplicates_spark(
+    df: SparkDataFrame, supported_columns
+) -> Optional[pd.DataFrame]:
     """Obtain the most occurring duplicate rows in the DataFrame.
 
     Args:
@@ -49,6 +53,6 @@ def _(df: SparkDataFrame, supported_columns) -> Optional[pd.DataFrame]:
     n_head = config["duplicates"]["head"].get(int)
 
     if n_head > 0 and supported_columns:
-        return df.groupby_get_n_largest(supported_columns, n_head)
+        return df.groupby_get_n_largest_dups(supported_columns, n_head)
 
     return None

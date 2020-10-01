@@ -3,6 +3,7 @@ from collections import Counter
 from datetime import datetime
 from functools import partial, singledispatch
 from pathlib import Path
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ def length_summary(series, summary: dict = {}) -> dict:
 
 
 @length_summary.register(pd.Series)
-def _(series: pd.Series, summary: dict = {}) -> dict:
+def _length_summary_pandas(series: pd.Series, summary: dict = {}) -> dict:
     length = series.str.len()
 
     summary.update({"length": length})
@@ -55,11 +56,16 @@ def _(series: pd.Series, summary: dict = {}) -> dict:
 
 
 @length_summary.register(SparkSeries)
-def _(series: SparkSeries, summary: dict = {}) -> dict:
+def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
     import pyspark.sql.functions as F
 
+    # do not count length of nans
     length = (
-        series.get_spark_series().select(F.length(series.name)).toPandas().squeeze()
+        series.get_spark_series()
+        .na.drop()
+        .select(F.length(series.name))
+        .toPandas()
+        .squeeze()
     )
 
     summary.update({"length": length})
@@ -270,7 +276,7 @@ def get_character_counts(series: pd.Series) -> Counter:
 
 
 @get_character_counts.register(pd.Series)
-def _(series: pd.Series) -> Counter:
+def _get_character_counts_pandas(series: pd.Series) -> Counter:
     """Function to return the character counts
 
     Args:
@@ -283,7 +289,7 @@ def _(series: pd.Series) -> Counter:
 
 
 @get_character_counts.register(SparkSeries)
-def _(series: SparkSeries) -> Counter:
+def _get_character_counts_spark(series: SparkSeries) -> Counter:
     """Function to return the character counts
 
     Args:
@@ -302,7 +308,9 @@ def _(series: SparkSeries) -> Counter:
         .count()
         .toPandas()
     )
-    my_dict = {x[0]: x[1] for x in zip(df["col"].values, df["count"].values)}
+
+    # standardise return as Counter object
+    my_dict = Counter({x[0]: x[1] for x in zip(df["col"].values, df["count"].values())})
     return my_dict
 
 
@@ -344,7 +352,7 @@ def unicode_summary(series) -> dict:
     }
     for char, n_char in character_counts.items():
         block_name = summary["block_alias_values"][char]
-        block_alias_counts[block_name] += n_char
+        block_alias_counts[block_name] += int(n_char)
         per_block_char_counts[block_name][char] = n_char
     summary["block_alias_counts"] = counter_to_series(block_alias_counts)
     summary["block_alias_char_counts"] = {
@@ -355,7 +363,7 @@ def unicode_summary(series) -> dict:
     per_script_char_counts: dict = {k: Counter() for k in char_to_script.values()}
     for char, n_char in character_counts.items():
         script_name = char_to_script[char]
-        script_counts[script_name] += n_char
+        script_counts[script_name] += int(n_char)
         per_script_char_counts[script_name][char] = n_char
     summary["script_counts"] = counter_to_series(script_counts)
     summary["script_char_counts"] = {
@@ -368,7 +376,7 @@ def unicode_summary(series) -> dict:
     }
     for char, n_char in character_counts.items():
         category_alias_name = summary["category_alias_values"][char]
-        category_alias_counts[category_alias_name] += n_char
+        category_alias_counts[category_alias_name] += int(n_char)
         per_category_alias_char_counts[category_alias_name][char] += n_char
     summary["category_alias_counts"] = counter_to_series(category_alias_counts)
     summary["category_alias_char_counts"] = {
@@ -391,6 +399,7 @@ def histogram_compute(finite_values, n_unique, name="histogram", weights=None):
     stats = {}
     bins = config["plot"]["histogram"]["bins"].get(int)
     bins = "auto" if bins == 0 else min(bins, n_unique)
+
     stats[name] = np.histogram(finite_values, bins=bins, weights=weights)
 
     max_bins = config["plot"]["histogram"]["max_bins"].get(int)

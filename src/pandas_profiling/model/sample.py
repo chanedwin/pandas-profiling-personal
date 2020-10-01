@@ -24,7 +24,7 @@ def get_sample(df: GenericDataFrame) -> list:
 
 
 @get_sample.register(PandasDataFrame)
-def _(df: PandasDataFrame) -> list:
+def _get_sample_pandas(df: PandasDataFrame) -> list:
     """Obtains a sample from head and tail of the DataFrame
 
     Args:
@@ -50,7 +50,7 @@ def _(df: PandasDataFrame) -> list:
 
 
 @get_sample.register(SparkDataFrame)
-def _(df: SparkDataFrame) -> list:
+def _get_sample_spark(df: SparkDataFrame) -> list:
     """Obtains a sample from head and tail of the DataFrame
 
     Args:

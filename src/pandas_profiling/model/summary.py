@@ -5,7 +5,7 @@ import multiprocessing.pool
 import warnings
 from collections import Counter
 from functools import singledispatch
-from typing import Callable, Mapping, Tuple
+from typing import Any, Callable, Mapping, Tuple
 
 import numpy as np
 import pandas as pd
@@ -41,7 +41,7 @@ from pandas_profiling.visualisation.missing import (
     missing_heatmap,
     missing_matrix,
 )
-from pandas_profiling.visualisation.plot import scatter_pairwise
+from pandas_profiling.visualisation.plot import scatter_pairwise, spark_scatter_pairwise
 
 
 @singledispatch
@@ -58,7 +58,9 @@ def describe_1d(series, summarizer: BaseSummarizer, typeset) -> dict:
 
 
 @describe_1d.register(pd.Series)
-def _(series: pd.Series, summarizer: BaseSummarizer, typeset) -> dict:
+def _describe_1d_unwrapped(
+    series: pd.Series, summarizer: BaseSummarizer, typeset
+) -> dict:
     """
     if a pd.Series is provided, we should wrap it in the pandas series wrapper.
     """
@@ -68,7 +70,9 @@ def _(series: pd.Series, summarizer: BaseSummarizer, typeset) -> dict:
 
 
 @describe_1d.register(PandasSeries)
-def _(series: PandasSeries, summarizer: BaseSummarizer, typeset) -> dict:
+def _describe_1d_pandas(
+    series: PandasSeries, summarizer: BaseSummarizer, typeset
+) -> dict:
     """Describe a series (infer the variable type, then calculate type-specific values).
 
     Args:
@@ -90,7 +94,9 @@ def _(series: PandasSeries, summarizer: BaseSummarizer, typeset) -> dict:
 
 
 @describe_1d.register(SparkSeries)
-def _(series: SparkSeries, summarizer: BaseSummarizer, typeset) -> dict:
+def _describe_1d_spark(
+    series: SparkSeries, summarizer: BaseSummarizer, typeset
+) -> dict:
     """Describe a series (infer the variable type, then calculate type-specific values).
 
     Args:
@@ -99,13 +105,11 @@ def _(series: SparkSeries, summarizer: BaseSummarizer, typeset) -> dict:
     Returns:
         A Series containing calculated series description values.
     """
-
+    vtype: Any = SparkUnsupported
     if series in SparkNumeric:
         vtype = SparkNumeric
     elif series in SparkCategorical:
         vtype = SparkCategorical
-    else:
-        vtype = SparkUnsupported
 
     # Infer variable types
     # vtype = Unsupported
@@ -201,7 +205,7 @@ def get_table_stats(df: GenericDataFrame, variable_stats: dict) -> dict:
 
 
 @get_table_stats.register(PandasDataFrame)
-def _(df: PandasDataFrame, variable_stats: dict) -> dict:
+def _get_table_stats_pandas(df: PandasDataFrame, variable_stats: dict) -> dict:
     n = len(df)
 
     memory_size = df.get_memory_usage(deep=config["memory_deep"].get(bool))
@@ -251,7 +255,7 @@ def _(df: PandasDataFrame, variable_stats: dict) -> dict:
 
 
 @get_table_stats.register(SparkDataFrame)
-def _(df: SparkDataFrame, variable_stats: dict) -> dict:
+def _get_table_stats_spark(df: SparkDataFrame, variable_stats: dict) -> dict:
     n = len(df)
 
     memory_size = df.get_memory_usage(deep=config["memory_deep"].get(bool))
@@ -318,7 +322,7 @@ def get_missing_diagrams(df: GenericDataFrame, table_stats: dict) -> dict:
 
 
 @get_missing_diagrams.register(PandasDataFrame)
-def _(df: PandasDataFrame, table_stats: dict) -> dict:
+def _get_missing_diagrams_pandas(df: PandasDataFrame, table_stats: dict) -> dict:
     def warn_missing(missing_name, error):
         warnings.warn(
             f"""There was an attempt to generate the {missing_name} missing values diagrams, but this failed.
@@ -388,7 +392,7 @@ def _(df: PandasDataFrame, table_stats: dict) -> dict:
 
 
 @get_missing_diagrams.register(SparkDataFrame)
-def _(df: SparkDataFrame, table_stats: dict) -> dict:
+def _get_missing_diagrams_spark(df: SparkDataFrame, table_stats: dict) -> dict:
     """
     awaiting missingno submission
 
@@ -411,31 +415,7 @@ def get_scatter_matrix(df, continuous_variables):
 
 
 @get_scatter_matrix.register(PandasDataFrame)
-def _(df, continuous_variables):
-    if config["interactions"]["continuous"].get(bool):
-        targets = config["interactions"]["targets"].get(list)
-        if len(targets) == 0:
-            targets = continuous_variables
-
-        scatter_matrix = {x: {y: "" for y in continuous_variables} for x in targets}
-
-        for x in targets:
-            for y in continuous_variables:
-                if x in continuous_variables:
-                    scatter_matrix[x][y] = scatter_pairwise(df[x], df[y], x, y)
-                    # check if any na still exists, and remove it before computing scatter matrix
-                    df_temp = df[[x, y]].dropna()
-                    scatter_matrix[x][y] = scatter_pairwise(
-                        df_temp[x], df_temp[y], x, y
-                    )
-    else:
-        scatter_matrix = {}
-
-    return scatter_matrix
-
-
-@get_scatter_matrix.register(SparkDataFrame)
-def _(df, continuous_variables):
+def _get_scatter_matrix_pandas(df, continuous_variables):
     scatter_matrix = {}
     if config["interactions"]["continuous"].get(bool):
         targets = config["interactions"]["targets"].get(list)
@@ -450,15 +430,29 @@ def _(df, continuous_variables):
         for x in targets:
             for y in continuous_variables:
                 if x in continuous_variables:
-                    pd_series_x = (
-                        SparkSeries(df[x]).get_spark_series().toPandas().squeeze()
-                    )
-                    pd_series_y = (
-                        SparkSeries(df[y]).get_spark_series().toPandas().squeeze()
-                    )
-                    scatter_matrix[x][y] = scatter_pairwise(
-                        pd_series_x, pd_series_y, x, y
-                    )
+                    scatter_matrix[x][y] = scatter_pairwise(df[x], df[y], x, y)
+
+    return scatter_matrix
+
+
+@get_scatter_matrix.register(SparkDataFrame)
+def _get_scatter_matrix_spark(df, continuous_variables):
+    scatter_matrix = {}
+    if config["interactions"]["continuous"].get(bool):
+        targets = config["interactions"]["targets"].get(list)
+        if len(targets) == 0:
+            targets = continuous_variables
+
+        scatter_matrix = {x: {y: "" for y in continuous_variables} for x in targets}
+
+        # check if any na still exists, and remove it before computing scatter matrix
+        df = df.dropna(subset=continuous_variables)
+
+        for x in targets:
+            for y in continuous_variables:
+                if x in continuous_variables:
+                    scatter_matrix[x][y] = spark_scatter_pairwise(df, x, y)
+
     return scatter_matrix
 
 

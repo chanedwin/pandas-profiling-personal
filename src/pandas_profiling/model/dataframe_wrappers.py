@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import List, Tuple
 
 import numpy as np
@@ -23,7 +24,7 @@ UNWRAPPED_DATAFRAME_WARNING = """Attempting to pass a pandas dataframe directly 
                      and pass that into the function directly """
 
 
-class GenericDataFrame(object):
+class GenericDataFrame(ABC):
     """
     This class is the abstract layer over the backend data types.
     This enables functions to be called on a dataframe regardless of whether the backend
@@ -50,6 +51,7 @@ class GenericDataFrame(object):
         self.df = None
 
     @staticmethod
+    @abstractmethod
     def validate_same_type(obj) -> bool:
         """
         Check if dataframe provided fits backend
@@ -59,9 +61,10 @@ class GenericDataFrame(object):
 
         Returns: True if object fits backend type else false
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @staticmethod
+    @abstractmethod
     def preprocess(df):
         """
         This method allows you to modify the dataframe before it is wrapped with a pandas-profiling
@@ -78,9 +81,10 @@ class GenericDataFrame(object):
         Returns: preprocess df with some logic before wrapping or do nothing
 
         """
-        raise NotImplementedError("Method not implemented for data type")
+        pass
 
     @property
+    @abstractmethod
     def columns(self) -> List[str]:
         """
         method to get all the columns in dataframe as a list
@@ -88,9 +92,10 @@ class GenericDataFrame(object):
         Returns: a list of column names
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @property
+    @abstractmethod
     def empty(self) -> bool:
         """
         return True if dataframe is empty, else return false. A dataframe of NaN should not
@@ -99,9 +104,10 @@ class GenericDataFrame(object):
         Returns: True if dataframe is empty else false
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @property
+    @abstractmethod
     def n_rows(self) -> int:
         """
         Get the number of rows in a dataframe as an int
@@ -109,8 +115,9 @@ class GenericDataFrame(object):
         Returns: number of rows in column
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def get_duplicate_rows_count(self, subset: List[str]) -> int:
         """
         returns the counts of exactly duplicate rows for the subset of columns
@@ -121,8 +128,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def dropna(self, subset: List[str]) -> "GenericDataFrame":
         """
         returns same dataframe type, but with nan rows dropped for the subset of columns
@@ -133,8 +141,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def iteritems(self) -> List[Tuple[str, GenericSeries]]:
         """
         returns name and generic series type
@@ -142,11 +151,10 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
-    def groupby_get_n_largest(
-        self, columns: List[str], n: int, for_duplicates=True
-    ) -> pd.DataFrame:
+    @abstractmethod
+    def groupby_get_n_largest_dups(self, columns: List[str], n: int) -> pd.DataFrame:
         """
         get top n value counts of groupby count function
 
@@ -157,8 +165,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        return NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def get_memory_usage(self, deep: bool = False) -> pd.Series:
         """
         Get memory usage of dataframe
@@ -170,8 +179,9 @@ class GenericDataFrame(object):
          memory usage of each column in bytes.
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def head(self, n: int):
         """
         Get top n rows of dataframe.
@@ -183,20 +193,9 @@ class GenericDataFrame(object):
         Returns: dataframe with only top n rows
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
-    def tail(self, n):
-        """
-        Get bottom n rows of dataframe
-
-        Args:
-            n: bottom n rows
-
-        Returns: dataframe with only bottom n rows
-
-        """
-        raise NotImplemented("Implementation not found")
-
+    @abstractmethod
     def sample(self, n, with_replacement=True):
         """
         Return a sample of dataframe
@@ -207,16 +206,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
-    def get_sample(self) -> List[Sample]:
-        """Obtains a sample from head and tail of the DataFrame
-
-        Returns:
-            a list of Sample objects
-        """
-        raise NotImplementedError("Method not implemented for data type")
-
+    @abstractmethod
     def value_counts(self, column) -> pd.Series:
         """
         Get value counts of a series as a Pandas Series object
@@ -229,8 +221,9 @@ class GenericDataFrame(object):
         and the series values are the counts
 
         """
-        raise NotImplementedError("Method not implemented for data type")
+        pass
 
+    @abstractmethod
     def __len__(self) -> int:
         """
         Get the number of rows in a dataframe as an int
@@ -238,10 +231,11 @@ class GenericDataFrame(object):
         Returns: number of rows in column
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def __getitem__(self, key):
-        raise NotImplemented("Implementation not found")
+        pass
 
 
 class PandasDataFrame(GenericDataFrame):
@@ -330,23 +324,14 @@ class PandasDataFrame(GenericDataFrame):
     def dropna(self, subset) -> "PandasDataFrame":
         return PandasDataFrame(self.df.dropna(subset=subset))
 
-    def groupby_get_n_largest(self, columns, n, for_duplicates=True) -> pd.DataFrame:
-        if for_duplicates:
-            return (
-                self.df[self.df.duplicated(subset=columns, keep=False)]
-                .groupby(columns)
-                .size()
-                .reset_index(name="count")
-                .nlargest(n, "count")
-            )
-        else:
-            return (
-                self.df[self.df.duplicated(subset=columns, keep=False)]
-                .groupby(columns)
-                .size()
-                .reset_index(name="count")
-                .nlargest(n, "count")
-            )
+    def groupby_get_n_largest_dups(self, columns, n) -> pd.DataFrame:
+        return (
+            self.df[self.df.duplicated(subset=columns, keep=False)]
+            .groupby(columns)
+            .size()
+            .reset_index(name="count")
+            .nlargest(n, "count")
+        )
 
     def __len__(self) -> int:
         return self.n_rows
@@ -372,22 +357,20 @@ class PandasDataFrame(GenericDataFrame):
         return self.df.head(n=n)
 
     def tail(self, n) -> pd.DataFrame:
+        """
+        this function is not mandatory - it is only called for the pandas backend in sample.py.
+        We do not have something similar for spark backend
+
+        Args:
+            n: number of tail rows to get
+
+        Returns: pandas dataframe with n tail rows
+
+        """
         return self.df.tail(n=n)
 
     def sample(self, n, with_replacement=True) -> pd.DataFrame:
         return self.df.sample(n, with_replacement=with_replacement)
-
-    def value_counts(self, column):
-        return self.df[column].value_counts()
-
-    def iteritems(self) -> List[Tuple[str, GenericSeries]]:
-        """
-        returns name and generic series type
-
-        Returns:
-
-        """
-        return [(i[0], PandasSeries(i[1])) for i in self.df.iteritems()]
 
     def value_counts(self, column):
         return self.df[column].value_counts()
@@ -462,7 +445,7 @@ class SparkDataFrame(GenericDataFrame):
         return self.df.columns
 
     @property
-    def schema(self) -> "pyspark.sql.types.StructType":
+    def schema(self):
         return self.df.schema
 
     @property
@@ -537,19 +520,31 @@ class SparkDataFrame(GenericDataFrame):
     def get_spark_df(self):
         return self.df
 
-    def dropna(self, subset) -> "SparkDataFrame":
+    def dropna(self, subset):
         return SparkDataFrame(self.df.na.drop(subset=subset))
 
     def get_memory_usage(self, deep):
         return self.df.sample(fraction=0.01).toPandas().memory_usage(deep=deep).sum()
 
-    def groupby_get_n_largest(
-        self, columns, n=None, for_duplicates=True
-    ) -> pd.DataFrame:
+    def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
         import pyspark.sql.functions as F
+        from pyspark.sql.functions import array, map_keys, map_values
+        from pyspark.sql.types import MapType
 
+        # this is important because dict functions cannot be groupby
+        column_type_tuple = list(zip(self.columns, [i.dataType for i in self.schema]))
+        converted_dataframe = self.get_spark_df()
+        for column, col_type in column_type_tuple:
+            if isinstance(col_type, MapType):
+                converted_dataframe = converted_dataframe.withColumn(
+                    column,
+                    array(
+                        map_keys(converted_dataframe[column]),
+                        map_values(converted_dataframe[column]),
+                    ),
+                )
         return (
-            self.df.groupBy(self.df.columns)
+            converted_dataframe.groupBy(self.df.columns)
             .agg(F.count("*"))
             .filter(F.col("count(1)").cast("int") > 1)
             .orderBy("count(1)", ascending=False)

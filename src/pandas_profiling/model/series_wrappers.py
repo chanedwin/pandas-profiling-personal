@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from functools import lru_cache
 
 import attr
@@ -21,10 +22,11 @@ class Sample(object):
     caption = attr.ib(default=None)
 
 
-class GenericSeries(object):
+class GenericSeries(ABC):
     def __init__(self, series):
         self.series = series
 
+    @abstractmethod
     def fillna(self, fill=None) -> "GenericSeries":
         raise NotImplementedError("Method not implemented for data type")
 
@@ -70,33 +72,73 @@ class SparkSeries(GenericSeries):
     def empty(self) -> bool:
         return self.n_rows == 0
 
-    def fillna(self, fill=None) -> "GenericSeries":
+    @property
+    def series_without_na(self):
+        """
+        Useful wrapper for getting the internal data series but with NAs dropped
+        Returns: internal spark series without nans
+
+        """
+        return self.series.na.drop()
+
+    def fillna(self, fill=None) -> "SparkSeries":
         if fill is not None:
             return SparkSeries(self.series.na.fill(fill))
         else:
             return SparkSeries(self.series.na.fillna())
 
     @property
-    @lru_cache(maxsize=1)
     def n_rows(self) -> int:
         return self.series.count()
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def value_counts(self, keep_na=True):
-        # do not drop NA here
-        if keep_na:
-            value_counts = self.series.groupBy(self.name).count().toPandas()
+
+        from pyspark.sql.functions import array, map_keys, map_values
+        from pyspark.sql.types import MapType
+
+        # if series type is dict, handle that separately
+        if isinstance(self.series.schema[0].dataType, MapType):
+            if keep_na:
+                new_df = self.series.groupby(
+                    map_keys(self.series[self.name]).alias("key"),
+                    map_values(self.series[self.name]).alias("value"),
+                ).count()
+                value_counts = (
+                    new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
+                    .select(self.name, "count")
+                    .toPandas()
+                )
+            else:
+                new_df = (
+                    self.series.na.drop()
+                    .groupby(
+                        map_keys(self.series[self.name]).alias("key"),
+                        map_values(self.series[self.name]).alias("value"),
+                    )
+                    .count()
+                )
+                value_counts = (
+                    new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
+                    .select(self.name, "count")
+                    .toPandas()
+                )
         else:
-            value_counts = self.series.na.drop().groupBy(self.name).count().toPandas()
+            if keep_na:
+                value_counts = self.series.groupBy(self.name).count().toPandas()
+            else:
+                value_counts = (
+                    self.series.na.drop().groupBy(self.name).count().toPandas()
+                )
 
         value_counts = (
             value_counts.sort_values("count", ascending=False)
             .set_index(self.name, drop=True)
-            .squeeze()
+            .squeeze(axis="columns")
         )
         return value_counts
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def count_na(self):
         return self.series.count() - self.series.na.drop().count()
 
