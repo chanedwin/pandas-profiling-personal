@@ -36,7 +36,7 @@ env:
   #  - TEST=examples PANDAS=">=1.1"
   #  - TEST=lint PANDAS=">=1.1"
   #  - TEST=typing PANDAS=">=1.1"
-  - TEST=spark PANDAS=">=1.1"
+  - TEST=spark PANDAS=">=1.1" SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7
 
 before_install:
   - pip install --upgrade pip setuptools wheel
@@ -80,9 +80,8 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7 make install-spark ;
-    export SPARK_HOME=/tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION};
-    make test-spark;
+    then make install-spark ;
+    SPARK_HOME=/tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} make test-spark;
     fi
 
 after_success:
