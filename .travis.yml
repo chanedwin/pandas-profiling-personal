@@ -17,9 +17,9 @@ jobs:
 
   allow_failures:
     - name: "Python 3.9-dev on Linux"
-    - env: SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7
+    - env: TEST=spark PANDAS=">=1.1" SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7
       python: 3.8
-      
+
 python:
   - 3.6
   - 3.7
@@ -83,7 +83,7 @@ script:
   - >
     if [ $TEST == 'spark' ];
     then make install-spark-ci ;
-    SPARK_HOME=${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} make test-spark;
+    JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 SPARK_HOME=${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} make test-spark;
     fi
 
 after_success:
