@@ -24,18 +24,18 @@ python:
   - 3.8
 
 env:
-  - TEST=unit PANDAS="<1"
-  - TEST=issue PANDAS="<1"
-  - TEST=console PANDAS="<1"
-  - TEST=examples PANDAS="<1"
-  - TEST=unit PANDAS="==1.0.5"
-  - TEST=issue PANDAS="==1.0.5"
-  - TEST=unit PANDAS=">=1.1"
-  - TEST=issue PANDAS=">=1.1"
-  - TEST=console PANDAS=">=1.1"
-  - TEST=examples PANDAS=">=1.1"
-  - TEST=lint PANDAS=">=1.1"
-  - TEST=typing PANDAS=">=1.1"
+#  - TEST=unit PANDAS="<1"
+#  - TEST=issue PANDAS="<1"
+#  - TEST=console PANDAS="<1"
+#  - TEST=examples PANDAS="<1"
+#  - TEST=unit PANDAS="==1.0.5"
+#  - TEST=issue PANDAS="==1.0.5"
+#  - TEST=unit PANDAS=">=1.1"
+#  - TEST=issue PANDAS=">=1.1"
+#  - TEST=console PANDAS=">=1.1"
+#  - TEST=examples PANDAS=">=1.1"
+#  - TEST=lint PANDAS=">=1.1"
+#  - TEST=typing PANDAS=">=1.1"
   - TEST=spark PANDAS=">=1.1"
 
 before_install:
