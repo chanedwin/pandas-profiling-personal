@@ -80,8 +80,8 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then make install-spark ;
-    SPARK_HOME=/tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} make test-spark;
+    then make install-spark-ci ;
+    SPARK_HOME=${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} make test-spark;
     fi
 
 after_success:

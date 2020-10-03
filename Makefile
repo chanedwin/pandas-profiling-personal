@@ -33,10 +33,10 @@ pypi_package:
 install:
 	pip install -e .[notebook,app]
 
-install-spark:
+install-spark-ci:
 	curl https://apachemirror.sg.wuchna.com/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-    --output /tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
-    tar -xvzf /tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
+    --output ${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
+    tar -xvzf ${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
 
 lint:
 	isort --profile black .
