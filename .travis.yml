@@ -8,15 +8,15 @@ cache:
 
 jobs:
   include:
-  - os: linux
-    name: "Python 3.9-dev on Linux"
-    python: 3.9-dev
-    env: TEST=examples PANDAS=">=1"
-    before_install:
-    - sudo apt-get -y install libopenblas-dev
+    - os: linux
+      name: "Python 3.9-dev on Linux"
+      python: 3.9-dev
+      env: TEST=examples PANDAS=">=1"
+      before_install:
+        - sudo apt-get -y install libopenblas-dev
 
   allow_failures:
-  - name: "Python 3.9-dev on Linux"
+    - name: "Python 3.9-dev on Linux"
 
 python:
   - 3.6
@@ -24,18 +24,18 @@ python:
   - 3.8
 
 env:
-#  - TEST=unit PANDAS="<1"
-#  - TEST=issue PANDAS="<1"
-#  - TEST=console PANDAS="<1"
-#  - TEST=examples PANDAS="<1"
-#  - TEST=unit PANDAS="==1.0.5"
-#  - TEST=issue PANDAS="==1.0.5"
-#  - TEST=unit PANDAS=">=1.1"
-#  - TEST=issue PANDAS=">=1.1"
-#  - TEST=console PANDAS=">=1.1"
-#  - TEST=examples PANDAS=">=1.1"
-#  - TEST=lint PANDAS=">=1.1"
-#  - TEST=typing PANDAS=">=1.1"
+  #  - TEST=unit PANDAS="<1"
+  #  - TEST=issue PANDAS="<1"
+  #  - TEST=console PANDAS="<1"
+  #  - TEST=examples PANDAS="<1"
+  #  - TEST=unit PANDAS="==1.0.5"
+  #  - TEST=issue PANDAS="==1.0.5"
+  #  - TEST=unit PANDAS=">=1.1"
+  #  - TEST=issue PANDAS=">=1.1"
+  #  - TEST=console PANDAS=">=1.1"
+  #  - TEST=examples PANDAS=">=1.1"
+  #  - TEST=lint PANDAS=">=1.1"
+  #  - TEST=typing PANDAS=">=1.1"
   - TEST=spark PANDAS=">=1.1"
 
 before_install:
@@ -79,7 +79,10 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7 SPARK_HOME=/tmp/spark-2.4.7-bin-hadoop2.7 ./install-spark.sh;
+    then SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7 SPARK_HOME=/tmp/spark-2.4.7-bin-hadoop2.7 \
+    curl http://apache.mirror.gtcomm.net/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz \
+    --output /tmp/spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz cd /tmp && \
+    tar -xvzf /tmp/spark-$SPARK_VERSION-bin-hadoop$HADOOP_VERSION.tgz ;
     make test-spark;
     fi
 
