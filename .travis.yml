@@ -80,7 +80,8 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then make install-spark ;
+    then SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7 make install-spark ;
+    export SPARK_HOME=/tmp/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION};
     make test-spark;
     fi
 
