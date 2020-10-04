@@ -41,7 +41,7 @@ from pandas_profiling.visualisation.missing import (
     missing_heatmap,
     missing_matrix,
 )
-from pandas_profiling.visualisation.plot import scatter_pairwise
+from pandas_profiling.visualisation.plot import scatter_pairwise, spark_scatter_pairwise
 
 
 @singledispatch
@@ -447,15 +447,7 @@ def _(df, continuous_variables):
         for x in targets:
             for y in continuous_variables:
                 if x in continuous_variables:
-                    pd_series_x = (
-                        SparkSeries(df[x]).get_spark_series().toPandas().squeeze()
-                    )
-                    pd_series_y = (
-                        SparkSeries(df[y]).get_spark_series().toPandas().squeeze()
-                    )
-                    scatter_matrix[x][y] = scatter_pairwise(
-                        pd_series_x, pd_series_y, x, y
-                    )
+                    scatter_matrix[x][y] = spark_scatter_pairwise(df, x, y)
 
     return scatter_matrix
 
