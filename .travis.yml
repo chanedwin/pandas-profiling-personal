@@ -31,18 +31,18 @@ env:
     - JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
     - SPARK_DOWNLOAD_URL=https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
   jobs:
-    - TEST=unit PANDAS="<1"
-    - TEST=issue PANDAS="<1"
-    - TEST=console PANDAS="<1"
-    - TEST=examples PANDAS="<1"
-    - TEST=unit PANDAS="==1.0.5"
-    - TEST=issue PANDAS="==1.0.5"
-    - TEST=unit PANDAS=">=1.1"
-    - TEST=issue PANDAS=">=1.1"
-    - TEST=console PANDAS=">=1.1"
-    - TEST=examples PANDAS=">=1.1"
-    - TEST=lint PANDAS=">=1.1"
-    - TEST=typing PANDAS=">=1.1"
+   # - TEST=unit PANDAS="<1"
+   # - TEST=issue PANDAS="<1"
+   # - TEST=console PANDAS="<1"
+   # - TEST=examples PANDAS="<1"
+   # - TEST=unit PANDAS="==1.0.5"
+   # - TEST=issue PANDAS="==1.0.5"
+   # - TEST=unit PANDAS=">=1.1"
+   # - TEST=issue PANDAS=">=1.1"
+   # - TEST=console PANDAS=">=1.1"
+   # - TEST=examples PANDAS=">=1.1"
+   # - TEST=lint PANDAS=">=1.1"
+   # - TEST=typing PANDAS=">=1.1"
     - TEST=spark PANDAS=">=1.1" SPARK_VERSION=2.3.0 HADOOP_VERSION=2.7
     - TEST=spark PANDAS=">=1.1" SPARK_VERSION=2.4.7 HADOOP_VERSION=2.7
     - TEST=spark PANDAS=">=1.1" SPARK_VERSION=3.0.1 HADOOP_VERSION=2.7
