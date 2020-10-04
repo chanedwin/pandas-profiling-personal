@@ -27,7 +27,7 @@ python:
 
 env:
   global:
-    - SPARK_HOME=${TRAVIS_BUILD_DIR}/spark/
+    - SPARK_HOME=${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/
     - JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
   jobs:
    # - TEST=unit PANDAS="<1"
