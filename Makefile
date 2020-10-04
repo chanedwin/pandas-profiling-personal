@@ -37,7 +37,7 @@ install-spark-ci:
 	sudo apt-get -y install openjdk-8-jdk
 	curl https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
 	--output ${TRAVIS_BUILD_DIR}/spark.tgz
-	tar -xvzf ${TRAVIS_BUILD_DIR}/spark.tgz -C ${TRAVIS_BUILD_DIR}/spark --strip-components 1
+	tar -xvzf ${TRAVIS_BUILD_DIR}/spark.tgz && mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} spark
 
 lint:
 	isort --profile black .
