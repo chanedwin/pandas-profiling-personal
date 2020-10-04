@@ -451,7 +451,7 @@ class SparkDataFrame(GenericDataFrame):
         return self.df.columns
 
     @property
-    def schema(self) -> "pyspark.sql.types.StructType":
+    def schema(self):
         return self.df.schema
 
     @property
@@ -526,7 +526,7 @@ class SparkDataFrame(GenericDataFrame):
     def get_spark_df(self):
         return self.df
 
-    def dropna(self, subset) -> "SparkDataFrame":
+    def dropna(self, subset):
         return SparkDataFrame(self.df.na.drop(subset=subset))
 
     def get_memory_usage(self, deep):
