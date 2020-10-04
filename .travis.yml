@@ -56,7 +56,7 @@ install:
 script:
   - >
     if [ $TEST == 'unit' ];
-    then pytest --cov=. tests/unit/;
+    then pytest -m "not sparktest" --cov=. tests/unit/; 
     fi
   - >
     if [ $TEST == 'issue' ];
