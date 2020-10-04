@@ -89,8 +89,11 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then make install-spark-ci ;
-    make test-spark;
+    then SPARK_DOWNLOAD_URL=${SPARK_DOWNLOAD_URL} \
+    SPARK_VERSION=${SPARK_VERSION} \
+    HADOOP_VERSION=${HADOOP_VERSION} \
+    SPARK_HOME=${SPARK_HOME} make install-spark-ci ;
+    make JAVA_HOME=${JAVA_HOME} SPARK_HOME=${SPARK_HOME}test-spark;
     fi
 
 after_success:
