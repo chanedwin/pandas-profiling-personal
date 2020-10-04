@@ -27,7 +27,6 @@ python:
 
 env:
   global:
-    - SPARK_HOME=${TRAVIS_BUILD_DIR}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/
     - JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
   jobs:
    # - TEST=unit PANDAS="<1"
@@ -88,8 +87,8 @@ script:
     fi
   - >
     if [ $TEST == 'spark' ];
-    then SPARK_VERSION=${SPARK_VERSION} HADOOP_VERSION=${HADOOP_VERSION} SPARK_HOME=${SPARK_HOME} make install-spark-ci;
-    JAVA_HOME=${JAVA_HOME} SPARK_HOME=${SPARK_HOME} make test-spark;
+    then SPARK_VERSION=${SPARK_VERSION} HADOOP_VERSION=${HADOOP_VERSION} make install-spark-ci;
+    JAVA_HOME=${JAVA_HOME} SPARK_HOME=${TRAVIS_BUILD_DIR}/spark/ make test-spark;
     fi
 
 after_success:
