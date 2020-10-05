@@ -10,6 +10,7 @@ from pandas_profiling.model.correlations import calculate_correlation
 from pandas_profiling.model.dataframe_wrappers import (
     UNWRAPPED_DATAFRAME_WARNING,
     GenericDataFrame,
+    SparkDataFrame,
 )
 from pandas_profiling.model.duplicates import get_duplicates
 from pandas_profiling.model.sample import Sample, get_sample
@@ -21,6 +22,7 @@ from pandas_profiling.model.summary import (
     get_table_stats,
 )
 from pandas_profiling.model.typeset import Numeric, SparkNumeric, Unsupported
+from pandas_profiling.utils.common import test_for_pyspark_pyarrow_incompatibility
 from pandas_profiling.utils.dataframe import get_appropriate_wrapper
 from pandas_profiling.version import __version__
 
@@ -57,6 +59,9 @@ def describe(
 
     if df.empty:
         raise ValueError("df can not be empty")
+
+    if isinstance(df, SparkDataFrame):
+        test_for_pyspark_pyarrow_incompatibility()
 
     disable_progress_bar = not config["progress_bar"].get(bool)
 
