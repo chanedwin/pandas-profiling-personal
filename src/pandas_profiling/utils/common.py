@@ -9,6 +9,11 @@ from imghdr import tests
 from pathlib import Path
 from typing import Mapping
 
+VERSION_WARNING = """Warning : using pyspark 2.3/2.4 with pyarrow >= 0.15 
+                        you might get errors with pyarrow's toPandas() functions because 
+                        pyspark 2.3/2.4 is incompatible with pyarrow >= 0.15. You may need to set ARROW_PRE_0_15_IPC_FORMAT=1
+                        in your spark.env to fix pyarrows errors if they occur.
+                see https://spark.apache.org/docs/3.0.0-preview/sql-pyspark-pandas-with-arrow.html#compatibiliy-setting-for-pyarrow--0150-and-spark-23x-24x"""
 
 def update(d: dict, u: Mapping) -> dict:
     """Recursively update a dict.
@@ -98,11 +103,6 @@ def test_for_pyspark_pyarrow_incompatibility():
     in warnings module in order to let the user know how to fix this problem
 
     """
-    version_warning = """Warning : using pyspark 2.3/2.4 with pyarrow >= 0.15 
-                        you might get errors with pyarrow's toPandas() functions because 
-                        pyspark 2.3/2.4 is incompatible with pyarrow >= 0.15. You may need to set ARROW_PRE_0_15_IPC_FORMAT=1
-                        in your spark.env to fix pyarrows errors if they occur.
-                see https://spark.apache.org/docs/3.0.0-preview/sql-pyspark-pandas-with-arrow.html#compatibiliy-setting-for-pyarrow--0150-and-spark-23x-24x"""
 
     try:
         # check versions
@@ -123,11 +123,11 @@ def test_for_pyspark_pyarrow_incompatibility():
             if not (pyarrow_version[0] == "0" and int(pyarrow_version[1]) < 15):
                 # if os variable is not set, likely unhandled
                 if "ARROW_PRE_0_15_IPC_FORMAT" not in os.environ:
-                    warnings.warn(version_warning)
+                    warnings.warn(VERSION_WARNING)
                 else:
                     # if variable is not set to 1, incompatibility error
                     if os.environ["ARROW_PRE_0_15_IPC_FORMAT"] != 1:
-                        warnings.warn(version_warning)
+                        warnings.warn(VERSION_WARNING)
     except:
         warnings.warn(
             "test for pyspark 2.3,2.4 incompatibility with arrow >= 0.15 failed"
