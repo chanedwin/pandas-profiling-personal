@@ -46,31 +46,41 @@ def test_spark_config_check(spark_session, monkeypatch):
     """
     test_for_pyspark_pyarrow_incompatibility
     """
-    import os
 
-    import pyarrow
-    import pyspark
-
-    monkeypatch.setattr(pyspark, "__version__", "2.3.0")
-    monkeypatch.setattr(pyspark, "__version__", "0.15.0")
-    monkeypatch.setattr(os, "environ", {})
-    with pytest.warns(VERSION_WARNING):
+    # Should warn because pyarrow version >= 0.15.0 and ARROW_PRE_0_15_IPC_FORMAT not set
+    monkeypatch.setattr("pyspark.__version__", "2.3.0")
+    monkeypatch.setattr("pyarrow.__version__", "0.15.0")
+    monkeypatch.setattr("os.environ", {})
+    with pytest.warns(UserWarning):
         test_for_pyspark_pyarrow_incompatibility()
 
-    monkeypatch.setattr(pyspark, "__version__", "2.3.0")
-    monkeypatch.setattr(pyspark, "__version__", "0.15.0")
-    monkeypatch.setattr(os, "environ", {"ARROW_PRE_0_15_IPC_FORMAT": 0})
-    with pytest.warns(VERSION_WARNING):
+    # Should warn because pyarrow version >= 0.15.0 and ARROW_PRE_0_15_IPC_FORMAT != 1
+    monkeypatch.setattr("pyspark.__version__", "2.3.0")
+    monkeypatch.setattr("pyarrow.__version__", "0.15.0")
+    monkeypatch.setattr("os.environ", {"ARROW_PRE_0_15_IPC_FORMAT": 0})
+    with pytest.warns(UserWarning):
         test_for_pyspark_pyarrow_incompatibility()
 
-    spark_version_tuple = pyspark.__version__.split(".")
+    # Should not warn because pyarrow version >= 0.15.0 and ARROW_PRE_0_15_IPC_FORMAT != 1
+    monkeypatch.setattr("pyspark.__version__", "2.3.0")
+    monkeypatch.setattr("pyarrow.__version__", "0.15.0")
+    monkeypatch.setattr("os.environ", {"ARROW_PRE_0_15_IPC_FORMAT": 1})
+    with pytest.warns(None) as record:
+        test_for_pyspark_pyarrow_incompatibility()
+    assert not record
 
-    if spark_version_tuple[0] == "2" and spark_version_tuple[1] in ["3", "4"]:
+    # Should not warn because pyarrow version < 0.15.0
+    monkeypatch.setattr("pyspark.__version__", "2.3.0")
+    monkeypatch.setattr("pyarrow.__version__", "0.14.1")
+    monkeypatch.setattr("os.environ", {})
+    with pytest.warns(None) as record:
+        test_for_pyspark_pyarrow_incompatibility()
+    assert not record
 
-        pyarrow_version_tuple = pyarrow.__version__.split(".")
-
-        # this checks if the env has an incompatible arrow version (not < 0.15)
-        if not (pyarrow_version_tuple[0] == "0" and int(pyarrow_version_tuple[1]) < 15):
-            # if os variable is not set, likely unhandled
-            if "ARROW_PRE_0_15_IPC_FORMAT" not in os.environ:
-                warnings.warn(VERSION_WARNING)
+    # Should not warn because spark version != 2.3 or 2.4 and ARROW_PRE_0_15_IPC_FORMAT != 1
+    monkeypatch.setattr("pyspark.__version__", "3.0.0")
+    monkeypatch.setattr("pyarrow.__version__", "1.0.0")
+    monkeypatch.setattr("os.environ", {})
+    with pytest.warns(None) as record:
+        test_for_pyspark_pyarrow_incompatibility()
+    assert not record
