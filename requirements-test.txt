@@ -18,3 +18,4 @@ kaggle
 
 # spark dependency
 pytest-spark>=0.6.0
+pyarrow>=0.8.0
