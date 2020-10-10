@@ -1,5 +1,6 @@
 """Plotting functions for the missing values diagrams"""
 from functools import singledispatch
+from typing import Union
 
 from matplotlib import pyplot as plt
 from missingno import missingno
@@ -22,7 +23,7 @@ def get_font_size(data: GenericDataFrame):
     max_label_length = max([len(label) for label in data.columns])
 
     if len(data.columns) < 20:
-        font_size = 13
+        font_size: Union[int, float] = 13
     elif 20 <= len(data.columns) < 40:
         font_size = 12
     elif 40 <= len(data.columns) < 60:
@@ -42,7 +43,7 @@ def missing_matrix(data) -> str:
 
 @missing_matrix.register(PandasDataFrame)
 @manage_matplotlib_context()
-def missing_matrix(data: PandasDataFrame) -> str:
+def _missing_matrix_pandas(data: PandasDataFrame) -> str:
     """Generate missing values matrix plot
 
     Args:
@@ -72,7 +73,7 @@ def missing_bar(data) -> str:
 
 @missing_bar.register(PandasDataFrame)
 @manage_matplotlib_context()
-def missing_bar(data: PandasDataFrame) -> str:
+def _missing_bar_pandas(data: PandasDataFrame) -> str:
     """Generate missing values bar plot.
 
     Args:
@@ -104,7 +105,7 @@ def missing_heatmap(data) -> str:
 
 @missing_heatmap.register(PandasDataFrame)
 @manage_matplotlib_context()
-def missing_heatmap(data: PandasDataFrame) -> str:
+def _missing_heatmap_pandas(data: PandasDataFrame) -> str:
     """Generate missing values heatmap plot.
 
     Args:
@@ -148,7 +149,7 @@ def missing_dendrogram(data) -> str:
 
 @manage_matplotlib_context()
 @missing_dendrogram.register(PandasDataFrame)
-def missing_dendrogram(data: PandasDataFrame) -> str:
+def _missing_dendrogram_pandas(data: PandasDataFrame) -> str:
     """Generate a dendrogram plot for missing values.
 
     Args:

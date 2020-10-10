@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import List, Tuple
 
 import numpy as np
@@ -23,7 +24,7 @@ UNWRAPPED_DATAFRAME_WARNING = """Attempting to pass a pandas dataframe directly 
                      and pass that into the function directly """
 
 
-class GenericDataFrame(object):
+class GenericDataFrame(ABC):
     """
     This class is the abstract layer over the backend data types.
     This enables functions to be called on a dataframe regardless of whether the backend
@@ -50,6 +51,7 @@ class GenericDataFrame(object):
         self.df = None
 
     @staticmethod
+    @abstractmethod
     def validate_same_type(obj) -> bool:
         """
         Check if dataframe provided fits backend
@@ -59,9 +61,10 @@ class GenericDataFrame(object):
 
         Returns: True if object fits backend type else false
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @staticmethod
+    @abstractmethod
     def preprocess(df):
         """
         This method allows you to modify the dataframe before it is wrapped with a pandas-profiling
@@ -78,9 +81,10 @@ class GenericDataFrame(object):
         Returns: preprocess df with some logic before wrapping or do nothing
 
         """
-        raise NotImplementedError("Method not implemented for data type")
+        pass
 
     @property
+    @abstractmethod
     def columns(self) -> List[str]:
         """
         method to get all the columns in dataframe as a list
@@ -88,9 +92,10 @@ class GenericDataFrame(object):
         Returns: a list of column names
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @property
+    @abstractmethod
     def empty(self) -> bool:
         """
         return True if dataframe is empty, else return false. A dataframe of NaN should not
@@ -99,9 +104,10 @@ class GenericDataFrame(object):
         Returns: True if dataframe is empty else false
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
     @property
+    @abstractmethod
     def n_rows(self) -> int:
         """
         Get the number of rows in a dataframe as an int
@@ -109,8 +115,9 @@ class GenericDataFrame(object):
         Returns: number of rows in column
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def get_duplicate_rows_count(self, subset: List[str]) -> int:
         """
         returns the counts of exactly duplicate rows for the subset of columns
@@ -121,8 +128,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def dropna(self, subset: List[str]) -> "GenericDataFrame":
         """
         returns same dataframe type, but with nan rows dropped for the subset of columns
@@ -133,8 +141,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def iteritems(self) -> List[Tuple[str, GenericSeries]]:
         """
         returns name and generic series type
@@ -142,8 +151,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def groupby_get_n_largest_dups(self, columns: List[str], n: int) -> pd.DataFrame:
         """
         get top n value counts of groupby count function
@@ -155,8 +165,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        return NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def get_memory_usage(self, deep: bool = False) -> pd.Series:
         """
         Get memory usage of dataframe
@@ -168,8 +179,9 @@ class GenericDataFrame(object):
          memory usage of each column in bytes.
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def head(self, n: int):
         """
         Get top n rows of dataframe.
@@ -181,8 +193,9 @@ class GenericDataFrame(object):
         Returns: dataframe with only top n rows
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def tail(self, n):
         """
         Get bottom n rows of dataframe
@@ -193,8 +206,9 @@ class GenericDataFrame(object):
         Returns: dataframe with only bottom n rows
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def sample(self, n, with_replacement=True):
         """
         Return a sample of dataframe
@@ -205,16 +219,9 @@ class GenericDataFrame(object):
         Returns:
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
-    def get_sample(self) -> List[Sample]:
-        """Obtains a sample from head and tail of the DataFrame
-
-        Returns:
-            a list of Sample objects
-        """
-        raise NotImplementedError("Method not implemented for data type")
-
+    @abstractmethod
     def value_counts(self, column) -> pd.Series:
         """
         Get value counts of a series as a Pandas Series object
@@ -227,8 +234,9 @@ class GenericDataFrame(object):
         and the series values are the counts
 
         """
-        raise NotImplementedError("Method not implemented for data type")
+        pass
 
+    @abstractmethod
     def __len__(self) -> int:
         """
         Get the number of rows in a dataframe as an int
@@ -236,10 +244,11 @@ class GenericDataFrame(object):
         Returns: number of rows in column
 
         """
-        raise NotImplemented("Implementation not found")
+        pass
 
+    @abstractmethod
     def __getitem__(self, key):
-        raise NotImplemented("Implementation not found")
+        pass
 
 
 class PandasDataFrame(GenericDataFrame):
@@ -365,18 +374,6 @@ class PandasDataFrame(GenericDataFrame):
 
     def sample(self, n, with_replacement=True) -> pd.DataFrame:
         return self.df.sample(n, with_replacement=with_replacement)
-
-    def value_counts(self, column):
-        return self.df[column].value_counts()
-
-    def iteritems(self) -> List[Tuple[str, GenericSeries]]:
-        """
-        returns name and generic series type
-
-        Returns:
-
-        """
-        return [(i[0], PandasSeries(i[1])) for i in self.df.iteritems()]
 
     def value_counts(self, column):
         return self.df[column].value_counts()

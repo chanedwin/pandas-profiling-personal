@@ -4,6 +4,7 @@ import os
 import pathlib
 import uuid
 from pathlib import PurePosixPath, PureWindowsPath
+from typing import Any
 from urllib.parse import urlparse
 
 import numpy as np
@@ -471,7 +472,7 @@ def get_contains_cases(
     argsvalues = []
     for item in _test_suite:
         for type, series_list in _series_map.items():
-            args = {"id": f"{item.name} x {type}"}
+            args: Any = {"id": f"{item.name} x {type}"}
 
             member = item.name in series_list
             argsvalues.append(pytest.param(item, type, member, **args))
