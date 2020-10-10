@@ -1,6 +1,12 @@
+import warnings
+
 import pytest
 
-from pandas_profiling.utils.common import test_for_pyspark_pyarrow_incompatibility, VERSION_WARNING
+from pandas_profiling.utils.common import (
+    VERSION_WARNING,
+    test_for_pyspark_pyarrow_incompatibility,
+)
+
 
 @pytest.mark.sparktest
 def test_import_spark_session(spark_session):
@@ -34,14 +40,17 @@ def test_create_spark_session(spark_session):
         is pytest-spark installed and configured properly?"""
         )
 
+
 @pytest.mark.sparktest
-def test_spark_config_check(spark_session,monkeypatch):
+def test_spark_config_check(spark_session, monkeypatch):
     """
     test_for_pyspark_pyarrow_incompatibility
     """
-    import pyspark
-    import pyarrow
     import os
+
+    import pyarrow
+    import pyspark
+
     monkeypatch.setattr(pyspark, "__version__", "2.3.0")
     monkeypatch.setattr(pyspark, "__version__", "0.15.0")
     monkeypatch.setattr(os, "environ", {})
@@ -50,17 +59,18 @@ def test_spark_config_check(spark_session,monkeypatch):
 
     monkeypatch.setattr(pyspark, "__version__", "2.3.0")
     monkeypatch.setattr(pyspark, "__version__", "0.15.0")
-    monkeypatch.setattr(os, "environ", {"ARROW_PRE_0_15_IPC_FORMAT":0})
+    monkeypatch.setattr(os, "environ", {"ARROW_PRE_0_15_IPC_FORMAT": 0})
     with pytest.warns(VERSION_WARNING):
         test_for_pyspark_pyarrow_incompatibility()
 
-    spar
-    if spark_version[0] == "2" and spark_version[1] in ["3", "4"]:
+    spark_version_tuple = pyspark.__version__.split(".")
 
-        pyarrow_version = pyarrow.__version__.split(".")
+    if spark_version_tuple[0] == "2" and spark_version_tuple[1] in ["3", "4"]:
+
+        pyarrow_version_tuple = pyarrow.__version__.split(".")
 
         # this checks if the env has an incompatible arrow version (not < 0.15)
-        if not (pyarrow_version[0] == "0" and int(pyarrow_version[1]) < 15):
+        if not (pyarrow_version_tuple[0] == "0" and int(pyarrow_version_tuple[1]) < 15):
             # if os variable is not set, likely unhandled
             if "ARROW_PRE_0_15_IPC_FORMAT" not in os.environ:
                 warnings.warn(VERSION_WARNING)

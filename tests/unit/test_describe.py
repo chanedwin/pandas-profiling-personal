@@ -637,7 +637,7 @@ def test_describe_spark_df(
     config["vars"]["num"]["low_categorical_threshold"].set(0)
 
     spark = spark_session
-    sc = spark_context
+
     if column == "mixed":
         describe_data[column] = [str(i) for i in describe_data[column]]
     if column == "bool_tf_with_nan":

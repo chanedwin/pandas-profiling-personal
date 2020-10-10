@@ -15,6 +15,7 @@ VERSION_WARNING = """Warning : using pyspark 2.3/2.4 with pyarrow >= 0.15
                         in your spark.env to fix pyarrows errors if they occur.
                 see https://spark.apache.org/docs/3.0.0-preview/sql-pyspark-pandas-with-arrow.html#compatibiliy-setting-for-pyarrow--0150-and-spark-23x-24x"""
 
+
 def update(d: dict, u: Mapping) -> dict:
     """Recursively update a dict.
 
