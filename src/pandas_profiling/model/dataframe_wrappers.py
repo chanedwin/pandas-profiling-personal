@@ -196,19 +196,6 @@ class GenericDataFrame(ABC):
         pass
 
     @abstractmethod
-    def tail(self, n):
-        """
-        Get bottom n rows of dataframe
-
-        Args:
-            n: bottom n rows
-
-        Returns: dataframe with only bottom n rows
-
-        """
-        pass
-
-    @abstractmethod
     def sample(self, n, with_replacement=True):
         """
         Return a sample of dataframe
@@ -370,6 +357,16 @@ class PandasDataFrame(GenericDataFrame):
         return self.df.head(n=n)
 
     def tail(self, n) -> pd.DataFrame:
+        """
+        this function is not mandatory - it is only called for the pandas backend in sample.py.
+        We do not have something similar for spark backend
+
+        Args:
+            n: number of tail rows to get
+
+        Returns: pandas dataframe with n tail rows
+
+        """
         return self.df.tail(n=n)
 
     def sample(self, n, with_replacement=True) -> pd.DataFrame:
