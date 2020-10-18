@@ -504,6 +504,26 @@ class SparkDataFrame(GenericDataFrame):
         )
         return pd.Series(df["count"].values, index=df["RAD"].values)
 
+    def nan_counts(self):
+        """
+        Only in spark implementation, because pandas already has isnull().sum()
+
+        Use this function to get a count of all the nan values.
+        Used in missing values function
+
+        Returns: Pandas Series of NaN counts in each column
+
+        """
+        import pyspark.sql.functions as F
+
+        return (
+            self.df.agg(
+                *[F.count(F.when(F.isnull(c), c)).alias(c) for c in self.df.columns]
+            )
+            .toPandas()
+            .squeeze(axis="columns")
+        )
+
     def __len__(self) -> int:
         return self.n_rows
 

@@ -6,7 +6,11 @@ from matplotlib import pyplot as plt
 from missingno import missingno
 
 from pandas_profiling.config import config
-from pandas_profiling.model.dataframe_wrappers import GenericDataFrame, PandasDataFrame
+from pandas_profiling.model.dataframe_wrappers import (
+    GenericDataFrame,
+    PandasDataFrame,
+    SparkDataFrame,
+)
 from pandas_profiling.visualisation.context import manage_matplotlib_context
 from pandas_profiling.visualisation.utils import hex_to_rgb, plot_360_n0sc0pe
 
@@ -85,6 +89,73 @@ def _missing_bar_pandas(data: PandasDataFrame) -> str:
     labels = config["plot"]["missing"]["force_labels"].get(bool)
     missingno.bar(
         data.get_pandas_df(),
+        figsize=(10, 5),
+        color=hex_to_rgb(config["html"]["style"]["primary_color"].get(str)),
+        fontsize=get_font_size(data),
+        labels=labels,
+    )
+    for ax0 in plt.gcf().get_axes():
+        ax0.grid(False)
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.8, bottom=0.3)
+
+    return plot_360_n0sc0pe(plt)
+
+
+@missing_bar.register(SparkDataFrame)
+@manage_matplotlib_context()
+def _missing_bar_spark(data: SparkDataFrame) -> str:
+    """Generate missing values bar plot.
+
+    Args:
+      data: Pandas DataFrame to generate missing values bar plot from.
+
+    Returns:
+      The resulting missing values bar plot encoded as a string.
+    """
+    labels = config["plot"]["missing"]["force_labels"].get(bool)
+
+    class MissingnoWrapper(object):
+        """
+        Technical Debt :
+        This is a mock object that allows usage of the library missingno as is for spark dataframes.
+        This is because missingno library must always apply a isnull().sum() on dataframes in the visualisation
+        function, instead of allowing just values counts as an entry point. Thus, in order to calculate the
+        missing values dataframe in spark, we compute it first, then wrap it in this MissingnoWrapper object which
+        will be unwrapped by missingno and return the right visualisations.
+
+
+        The best alternative to this are is to submit PR to missingno to separate preprocessing function
+        (compute value counts from df) and visualisation functions such that we can call the visualisation directly.
+        Unfortunately, the missingno library people have not really responded to our issues on gitlab.
+        See https://github.com/ResidentMario/missingno/issues/119.
+        We could also fork the missingno library orwrapped_df implement some of the code in our database, but that feels
+        like quite a bad practice as well.
+        """
+
+        def __init__(self, df, len):
+            self.df = df
+            self.len = len
+
+        def isnull(self):
+            class MockSum(object):
+                """
+                This mocks the .sum() function called by missingno library
+                """
+
+                def __init__(self, df):
+                    self.df = df
+
+                def sum(self):
+                    return self.df
+
+            return MockSum(self.df)
+
+        def __len__(self):
+            return self.len
+
+    print(data.nan_counts())
+    missingno.bar(
+        MissingnoWrapper(data.nan_counts(), data.n_rows),
         figsize=(10, 5),
         color=hex_to_rgb(config["html"]["style"]["primary_color"].get(str)),
         fontsize=get_font_size(data),
