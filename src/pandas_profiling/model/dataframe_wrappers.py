@@ -394,6 +394,7 @@ class SparkDataFrame(GenericDataFrame):
     def __init__(self, df):
         super().__init__()
         self.df = df
+        self.persist_bool = True
 
     @staticmethod
     def validate_same_type(obj) -> bool:
@@ -524,7 +525,9 @@ class SparkDataFrame(GenericDataFrame):
         return SparkDataFrame(self.df.na.drop(subset=subset))
 
     def get_memory_usage(self, deep):
-        return self.df.sample(fraction=0.01).toPandas().memory_usage(deep=deep).sum()
+        return (
+            100 * self.df.sample(fraction=0.01).toPandas().memory_usage(deep=deep).sum()
+        )
 
     def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
         import pyspark.sql.functions as F
@@ -585,6 +588,14 @@ class SparkDataFrame(GenericDataFrame):
             .toPandas()
             .squeeze(axis="index")
         )
+
+    def persist(self):
+        if self.persist_bool:
+            self.df.persist()
+
+    def unpersist(self):
+        if self.persist_bool:
+            self.df.unpersist()
 
     def __getitem__(self, key):
         return self.df.select(key)
