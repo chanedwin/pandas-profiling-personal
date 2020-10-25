@@ -118,12 +118,12 @@ def _missing_bar_spark(data: SparkDataFrame) -> str:
         """
         Technical Debt :
         This is a monkey patching object that allows usage of the library missingno as is for spark dataframes.
-        This is because missingno library always applies a isnull().sum() on dataframes in the visualisation
+        This is because missingno library's bar function always applies a isnull().sum() on dataframes in the visualisation
         function, instead of allowing just values counts as an entry point. Thus, in order to calculate the
         missing values dataframe in spark, we compute it first, then wrap it in this MissingnoBarSparkPatch object which
         will be unwrapped by missingno and return the pre-computed value counts.
 
-        The best fix to this currently terrible method is to submit a PR to missingno to separate preprocessing function
+        The best fix to this currently terrible patch is to submit a PR to missingno to separate preprocessing function
         (compute value counts from df) and visualisation functions such that we can call the visualisation directly.
         Unfortunately, the missingno library people have not really responded to our issues on gitlab.
         See https://github.com/ResidentMario/missingno/issues/119.
@@ -131,33 +131,33 @@ def _missing_bar_spark(data: SparkDataFrame) -> str:
         like bad practice as well.
         """
 
-        def __init__(self, df):
+        def __init__(self, df, original_df_size=None):
             self.df = df
+            self.original_df_size = original_df_size
 
         def isnull(self):
             """
             This patches the .isnull().sum() function called by missingno library
             """
-            return MissingnoBarSparkPatch(df=self.df)
+            return self  # return self to patch .sum() function
 
         def sum(self):
             """
             This patches the .sum() function called by missingno library
             """
-            return self.df
+            return self.df  # return unwrapped dataframe
 
         def __len__(self):
             """
             This patches the len(df) function called by missingno library
             """
+            return self.original_df_size
 
-            return len(self.df)
-
-    # precompute the nan counts in spark
+    # pre-compute the nan counts in spark
     data_nan_counts = data.nan_counts()
 
     missingno.bar(
-        MissingnoBarSparkPatch(df=data_nan_counts),
+        MissingnoBarSparkPatch(df=data_nan_counts, original_df_size=data.n_rows),
         figsize=(10, 5),
         color=hex_to_rgb(config["html"]["style"]["primary_color"].get(str)),
         fontsize=get_font_size(data),

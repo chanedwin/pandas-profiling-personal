@@ -571,7 +571,7 @@ class SparkDataFrame(GenericDataFrame):
         we use .squeeze(axis="index") to ensure that it doesn't become a scalar
 
         Use this function to get a count of all the nan values.
-        Used in missing values function
+        Used in pandas_profiling.visualisation.missing function
 
         Returns: Pandas Series of NaN counts in each column
 
