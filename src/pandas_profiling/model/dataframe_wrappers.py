@@ -394,6 +394,8 @@ class SparkDataFrame(GenericDataFrame):
     def __init__(self, df):
         super().__init__()
         self.df = df
+
+        # TO-DO - change profile_report to take persist_bool as a variable for spark-dataframes
         self.persist_bool = True
 
     @staticmethod

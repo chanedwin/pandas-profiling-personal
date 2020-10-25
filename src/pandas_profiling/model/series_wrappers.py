@@ -59,6 +59,7 @@ class SparkSeries(GenericSeries):
     def __init__(self, series):
         super().__init__(series)
         self.series = series
+        # TO-DO - change profile_report to take persist_bool as a variable for spark-series
         self.persist_bool = True
 
     @property
