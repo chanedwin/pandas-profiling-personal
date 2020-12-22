@@ -262,7 +262,7 @@ class Cramers(Correlation):
             phi2corr = max(0.0, phi2 - ((k - 1.0) * (r - 1.0)) / (n - 1.0))
             rcorr = r - ((r - 1.0) ** 2.0) / (n - 1.0)
             kcorr = k - ((k - 1.0) ** 2.0) / (n - 1.0)
-            corr = np.sqrt(phi2corr / min((kcorr - 1.0), (rcorr - 1.0)))
+            corr = np.sqrt(phi2corr / np.float64(min((kcorr - 1.0), (rcorr - 1.0))))
         return corr
 
     @singledispatchmethod
