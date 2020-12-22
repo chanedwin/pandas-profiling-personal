@@ -93,14 +93,14 @@ class SparkSeries(GenericSeries):
         return self.series.count()
 
     @lru_cache()
-    def value_counts(self, keep_na=True):
+    def value_counts(self, dropna=False):
 
         from pyspark.sql.functions import array, map_keys, map_values
         from pyspark.sql.types import MapType
 
         # if series type is dict, handle that separately
         if isinstance(self.series.schema[0].dataType, MapType):
-            if keep_na:
+            if not dropna:
                 new_df = self.series.groupby(
                     map_keys(self.series[self.name]).alias("key"),
                     map_values(self.series[self.name]).alias("value"),
@@ -125,7 +125,7 @@ class SparkSeries(GenericSeries):
                     .toPandas()
                 )
         else:
-            if keep_na:
+            if not dropna:
                 value_counts = self.series.groupBy(self.name).count().toPandas()
             else:
                 value_counts = (
