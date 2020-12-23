@@ -1,5 +1,6 @@
 """Compute statistical description of datasets."""
 
+import asyncio
 import multiprocessing
 import multiprocessing.pool
 import warnings
@@ -93,8 +94,7 @@ def _describe_1d_pandas(
     return summarizer.summarize(series, dtype=vtype)
 
 
-@describe_1d.register(SparkSeries)
-def _describe_1d_spark(
+async def async_describe_1d_spark(
     series: SparkSeries, summarizer: BaseSummarizer, typeset
 ) -> dict:
     """Describe a series (infer the variable type, then calculate type-specific values).
@@ -144,6 +144,22 @@ def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
         column, series = args
         return column, describe_1d(series, summarizer, typeset)
 
+    async def spark_async_1d(args) -> Tuple[str, dict]:
+        """Wrapper to process series in parallel.
+
+        Args:
+            column: The name of the column.
+            series: The series values.
+
+        Returns:
+            A tuple with column and the series description.
+        """
+        column, series = args
+        return column, async_describe_1d_spark(series, summarizer, typeset)
+
+    async def spark_async(args):
+        return [spark_async_1d(arg) for arg in args]
+
     # check for unwrapped dataframes and warn
     if not isinstance(df, GenericDataFrame):
         warnings.warn(UNWRAPPED_DATAFRAME_WARNING)
@@ -162,7 +178,13 @@ def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
     series_description = {}
 
     # if we're using spark as base compute, no need to multiprocess
-    if pool_size == 1 or isinstance(df, SparkDataFrame):
+    if isinstance(df, SparkDataFrame):
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(spark_async(args))
+        loop.close()
+        for column, description in results:
+            series_description[column] = description
+    elif pool_size == 1:
         for arg in args:
             pbar.set_postfix_str(f"Describe variable:{arg[0]}")
             column, description = multiprocess_1d(arg)

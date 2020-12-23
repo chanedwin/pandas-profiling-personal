@@ -453,7 +453,7 @@ def describe_boolean_1d(series: pd.Series, summary: dict) -> Tuple[pd.Series, di
     return series, summary
 
 
-def describe_counts_spark(
+async def describe_counts_spark(
     series: SparkSeries, summary: dict
 ) -> Tuple[SparkSeries, dict]:
     """Counts the values in a series (with and without NaN, distinct).
@@ -464,13 +464,13 @@ def describe_counts_spark(
     Returns:
         A dictionary with the count values (with and without NaN, distinct).
     """
-    summary["value_counts_without_nan"] = series.value_counts(dropna=True)
+    summary["value_counts_without_nan"] = await series.value_counts()
     summary["n_missing"] = series.count_na()
 
     return series, summary
 
 
-def describe_supported_spark(
+async def describe_supported_spark(
     series: SparkSeries, series_description: dict
 ) -> Tuple[SparkSeries, dict]:
     """Describe a supported series.
@@ -486,7 +486,7 @@ def describe_supported_spark(
 
     value_counts = series_description["value_counts_without_nan"]
     distinct_count = len(value_counts)
-    unique_count = value_counts.where(value_counts == 1).count()
+    unique_count = await value_counts.where(value_counts == 1).count()
 
     stats = {
         "n_distinct": distinct_count,
@@ -500,7 +500,7 @@ def describe_supported_spark(
     return series, stats
 
 
-def describe_generic_spark(
+async def describe_generic_spark(
     series: SparkSeries, summary: dict
 ) -> Tuple[SparkSeries, dict]:
     """Describe generic series.
@@ -526,7 +526,9 @@ def describe_generic_spark(
     return series, summary
 
 
-def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries, dict]:
+async def describe_numeric_spark_1d(
+    series: SparkSeries, summary
+) -> Tuple[SparkSeries, dict]:
     """Describe a boolean series.
 
     Args:
@@ -564,9 +566,11 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats.update(numeric_stats_spark(series))
 
     # manual MAD computation, refactor possible
-    median = series.series_without_na.stat.approxQuantile(series.name, [0.5], 0)[0]
+    median = await series.series_without_na.stat.approxQuantile(series.name, [0.5], 0)[
+        0
+    ]
 
-    mad = series.series_without_na.select(
+    mad = await series.series_without_na.select(
         (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
     ).stat.approxQuantile("abs_dev", [0.5], 0)[0]
     stats.update(
@@ -585,7 +589,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
             f"{percentile:.0%}": value
             for percentile, value in zip(
                 quantiles,
-                series.series_without_na.stat.approxQuantile(series.name, quantiles, 0),
+                await series.series_without_na.stat.approxQuantile(
+                    series.name, quantiles, 0
+                ),
             )
         }
     )
@@ -614,7 +620,7 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     return series, stats
 
 
-def describe_categorical_spark_1d(
+async def describe_categorical_spark_1d(
     series: SparkSeries, summary: dict
 ) -> Tuple[SparkSeries, dict]:
     """Describe a categorical series.
@@ -662,7 +668,7 @@ def describe_categorical_spark_1d(
 
 
 @series_hashable
-def describe_boolean_spark_1d(
+async def describe_boolean_spark_1d(
     series: SparkSeries, summary: dict
 ) -> Tuple[SparkSeries, dict]:
     """Describe a boolean series.

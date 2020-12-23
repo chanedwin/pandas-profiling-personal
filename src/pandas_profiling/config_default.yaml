@@ -94,6 +94,7 @@ correlations:
 # Spark specific correlations
 spark:
     persist: True
+    scatter: False
 
 # Bivariate / Pairwise relations
 interactions:
