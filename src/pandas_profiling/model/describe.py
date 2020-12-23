@@ -133,10 +133,17 @@ def describe(
             key: value for key, value in correlations.items() if value is not None
         }
 
-        # Scatter matrix
-        pbar.set_postfix_str("Get scatter matrix")
-        scatter_matrix = get_scatter_matrix(df, interval_columns)
-        pbar.update()
+        # Scatter matrix -> if is spark and config["spark"]["scatter"] is False, don't scatter matrix
+        if not (
+            isinstance(df, SparkDataFrame) and not config["spark"]["scatter"].get(bool)
+        ):
+            pbar.set_postfix_str("Get scatter matrix")
+            scatter_matrix = get_scatter_matrix(df, interval_columns)
+            pbar.update()
+        else:
+            pbar.set_postfix_str("Get scatter matrix")
+            scatter_matrix = {}
+            pbar.update()
 
         # Table statistics
         pbar.set_postfix_str("Get table statistics")

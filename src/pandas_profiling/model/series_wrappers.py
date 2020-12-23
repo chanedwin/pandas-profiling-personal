@@ -93,44 +93,45 @@ class SparkSeries(GenericSeries):
         return self.series.count()
 
     @lru_cache()
-    def value_counts(self, dropna=False):
+    def value_counts(self, n=1000):
+        """
+
+        Args:
+            n: by default, get only 1000
+
+        Returns:
+
+        """
 
         from pyspark.sql.functions import array, map_keys, map_values
         from pyspark.sql.types import MapType
 
         # if series type is dict, handle that separately
         if isinstance(self.series.schema[0].dataType, MapType):
-            if not dropna:
-                new_df = self.series.groupby(
+            new_df = (
+                self.series.na.drop()
+                .groupby(
                     map_keys(self.series[self.name]).alias("key"),
                     map_values(self.series[self.name]).alias("value"),
-                ).count()
-                value_counts = (
-                    new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
-                    .select(self.name, "count")
-                    .toPandas()
                 )
-            else:
-                new_df = (
-                    self.series.na.drop()
-                    .groupby(
-                        map_keys(self.series[self.name]).alias("key"),
-                        map_values(self.series[self.name]).alias("value"),
-                    )
-                    .count()
-                )
-                value_counts = (
-                    new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
-                    .select(self.name, "count")
-                    .toPandas()
-                )
+                .count()
+            )
+            value_counts = (
+                new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
+                .select(self.name, "count")
+                .orderBy("count", ascending=False)
+                .limit(n)
+                .toPandas()
+            )
         else:
-            if not dropna:
-                value_counts = self.series.groupBy(self.name).count().toPandas()
-            else:
-                value_counts = (
-                    self.series.na.drop().groupBy(self.name).count().toPandas()
-                )
+            value_counts = (
+                self.series.na.drop()
+                .groupBy(self.name)
+                .count()
+                .orderBy("count", ascending=False)
+                .limit(n)
+                .toPandas()
+            )
 
         value_counts = (
             value_counts.sort_values("count", ascending=False)
