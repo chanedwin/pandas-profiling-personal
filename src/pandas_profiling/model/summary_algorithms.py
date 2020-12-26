@@ -461,7 +461,10 @@ def describe_counts_spark(
         A dictionary with the count values (with and without NaN, distinct).
     """
     spark_value_counts = series.value_counts()
-    limited_results = spark_value_counts.limit(1000).toPandas()
+
+    # max number of rows to visualise on histogram, most common values taken
+    to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
+    limited_results = spark_value_counts.limit(to_pandas_limit).toPandas()
 
     limited_results = (
         limited_results.sort_values("count", ascending=False)

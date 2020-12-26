@@ -407,12 +407,3 @@ def chi_square(values=None, histogram=None):
     if histogram is None:
         histogram, _ = np.histogram(values, bins="auto")
     return dict(chisquare(histogram)._asdict())
-
-
-def spark_chi_square(series: SparkSeries):
-    series.value_counts()
-    value_counts = series.series_without_na.groupBy(series.name).count().toPandas()
-    value_counts = value_counts.sort_values("count", ascending=False).set_index(
-        series.name, drop=True
-    )
-    return dict(chisquare(value_counts)._asdict())

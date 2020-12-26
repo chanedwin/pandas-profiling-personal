@@ -95,8 +95,9 @@ correlations:
 spark:
     persist: True
     pool_size: 2
-    quantile_error: 0.05
+    quantile_error: 0.1
     scatter: False
+    to_pandas_limit: 1000
 
 # Bivariate / Pairwise relations
 interactions:
