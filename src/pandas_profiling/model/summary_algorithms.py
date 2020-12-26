@@ -169,8 +169,6 @@ def numeric_stats_spark(series: SparkSeries):
 
     import pyspark.sql.functions as F
 
-    series.persist()
-
     numeric_results_df = (
         series.series_without_na.select(
             F.mean(series.name).alias("mean"),
@@ -185,8 +183,6 @@ def numeric_stats_spark(series: SparkSeries):
         .toPandas()
         .T
     )
-
-    series.unpersist()
 
     results = {
         "mean": numeric_results_df.loc["mean"][0],
@@ -464,7 +460,17 @@ def describe_counts_spark(
     Returns:
         A dictionary with the count values (with and without NaN, distinct).
     """
-    summary["value_counts_without_nan"] = series.value_counts(dropna=True)
+    spark_value_counts = series.value_counts()
+    limited_results = spark_value_counts.limit(1000).toPandas()
+
+    limited_results = (
+        limited_results.sort_values("count", ascending=False)
+        .set_index(series.name, drop=True)
+        .squeeze(axis="columns")
+    )
+
+    summary["value_counts_without_nan"] = limited_results
+    summary["value_counts_without_nan_spark"] = spark_value_counts
     summary["n_missing"] = series.count_na()
 
     return series, summary
@@ -484,9 +490,9 @@ def describe_supported_spark(
     # number of non-NaN observations in the Series
     count = series_description["count"]
 
-    value_counts = series_description["value_counts_without_nan"]
-    distinct_count = len(value_counts)
-    unique_count = value_counts.where(value_counts == 1).count()
+    value_counts = series_description["value_counts_without_nan_spark"]
+    distinct_count = value_counts.count()
+    unique_count = value_counts.where("count = 1").count()
 
     stats = {
         "n_distinct": distinct_count,
@@ -563,12 +569,16 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
 
     stats.update(numeric_stats_spark(series))
 
+    quantile_threshold = config["spark"]["quantile_error"].get(float)
+
     # manual MAD computation, refactor possible
-    median = series.series_without_na.stat.approxQuantile(series.name, [0.5], 0)[0]
+    median = series.series_without_na.stat.approxQuantile(
+        series.name, [0.5], quantile_threshold
+    )[0]
 
     mad = series.series_without_na.select(
         (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
-    ).stat.approxQuantile("abs_dev", [0.5], 0)[0]
+    ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
     stats.update(
         {
             "mad": mad,
@@ -585,7 +595,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
             f"{percentile:.0%}": value
             for percentile, value in zip(
                 quantiles,
-                series.series_without_na.stat.approxQuantile(series.name, quantiles, 0),
+                series.series_without_na.stat.approxQuantile(
+                    series.name, quantiles, quantile_threshold
+                ),
             )
         }
     )

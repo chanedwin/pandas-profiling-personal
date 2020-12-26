@@ -94,6 +94,9 @@ correlations:
 # Spark specific correlations
 spark:
     persist: True
+    pool_size: 2
+    quantile_error: 0.05
+    scatter: False
 
 # Bivariate / Pairwise relations
 interactions:

@@ -115,8 +115,10 @@ def _describe_1d_spark(
     # vtype = Unsupported
     # vtype = typeset.infer_type(series)
     # series = typeset.cast_to_inferred(series)
-
-    return summarizer.summarize(series, dtype=vtype)
+    series.persist()
+    results = summarizer.summarize(series, dtype=vtype)
+    series.unpersist()
+    return results
 
 
 def sort_column_names(dct: Mapping, sort: str):
@@ -150,7 +152,12 @@ def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
         df_wrapper = get_appropriate_wrapper(df)
         df = df_wrapper(df)
 
-    pool_size = config["pool_size"].get(int)
+    if isinstance(df, SparkDataFrame):
+        # default spark pool_size is 5 to take advantage of multiple python processes running spark jobs
+        pool_size = config["spark"]["pool_size"].get(int)
+    else:
+        pool_size = config["pool_size"].get(int)
+
     sort = config["sort"].get(str)
 
     # Multiprocessing of Describe 1D for each column
@@ -161,8 +168,7 @@ def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
 
     series_description = {}
 
-    # if we're using spark as base compute, no need to multiprocess
-    if pool_size == 1 or isinstance(df, SparkDataFrame):
+    if pool_size == 1:
         for arg in args:
             pbar.set_postfix_str(f"Describe variable:{arg[0]}")
             column, description = multiprocess_1d(arg)

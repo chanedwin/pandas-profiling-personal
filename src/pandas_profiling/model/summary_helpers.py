@@ -60,13 +60,7 @@ def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
     import pyspark.sql.functions as F
 
     # do not count length of nans
-    length = (
-        series.get_spark_series()
-        .na.drop()
-        .select(F.length(series.name))
-        .toPandas()
-        .squeeze()
-    )
+    length = series.series_without_na.select(F.length(series.name)).toPandas().squeeze()
 
     summary.update({"length": length})
     summary.update(named_aggregate_summary(length, "length"))
@@ -417,9 +411,7 @@ def chi_square(values=None, histogram=None):
 
 def spark_chi_square(series: SparkSeries):
     series.value_counts()
-    value_counts = (
-        series.get_spark_series().na.drop().groupBy(series.name).count().toPandas()
-    )
+    value_counts = series.series_without_na.groupBy(series.name).count().toPandas()
     value_counts = value_counts.sort_values("count", ascending=False).set_index(
         series.name, drop=True
     )
