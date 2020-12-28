@@ -11,8 +11,10 @@ from pandas_profiling.config import config
 from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.model.summary_helpers import (
     chi_square,
+    chi_square_spark,
     file_summary,
     histogram_compute,
+    histogram_compute_spark,
     image_summary,
     length_summary,
     mad,
@@ -164,13 +166,10 @@ def numeric_stats_numpy(present_values, series, series_description):
 
 
 def numeric_stats_spark(series: SparkSeries):
-    #     summary["min"] = summary["value_counts_without_nan"].index.min()
-    # vc.index.min()
-
     import pyspark.sql.functions as F
 
     numeric_results_df = (
-        series.series_without_na.select(
+        series.dropna.select(
             F.mean(series.name).alias("mean"),
             F.stddev(series.name).alias("std"),
             F.variance(series.name).alias("variance"),
@@ -554,19 +553,12 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
 
     value_counts = summary["value_counts_without_nan"]
 
-    summary["n_zeros"] = 0
-
     infinity_values = [np.inf, -np.inf]
-    infinity_index = value_counts.index.isin(infinity_values)
-    summary["n_infinite"] = value_counts.loc[infinity_index].sum()
+    summary["n_infinite"] = series.dropna.where(
+        series.dropna[series.name].isin(infinity_values)
+    ).count()
 
-    if 0 in value_counts.index:
-        infinity_values = [np.inf, -np.inf]
-    infinity_index = value_counts.index.isin(infinity_values)
-    summary["n_infinite"] = value_counts.loc[infinity_index].sum()
-
-    if 0 in value_counts.index:
-        summary["n_zeros"] = value_counts.loc[0]
+    summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
 
     stats = summary
 
@@ -575,11 +567,11 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     quantile_threshold = config["spark"]["quantile_error"].get(float)
 
     # manual MAD computation, refactor possible
-    median = series.series_without_na.stat.approxQuantile(
-        series.name, [0.5], quantile_threshold
-    )[0]
+    median = series.dropna.stat.approxQuantile(series.name, [0.5], quantile_threshold)[
+        0
+    ]
 
-    mad = series.series_without_na.select(
+    mad = series.dropna.select(
         (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
     ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
     stats.update(
@@ -588,9 +580,6 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
         }
     )
 
-    if chi_squared_threshold > 0.0:
-        stats["chi_squared"] = chi_square(histogram=value_counts.values)
-
     stats["range"] = stats["max"] - stats["min"]
 
     stats.update(
@@ -598,7 +587,7 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
             f"{percentile:.0%}": value
             for percentile, value in zip(
                 quantiles,
-                series.series_without_na.stat.approxQuantile(
+                series.dropna.stat.approxQuantile(
                     series.name, quantiles, quantile_threshold
                 ),
             )
@@ -618,11 +607,13 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats["monotonic_increase_strict"] = False
     stats["monotonic_decrease_strict"] = False
 
+    # use Freedman Diaconis rule to compute histogram bins for spark
+    bw = 2 * stats["iqr"] * (stats["n"] ** (-1 / 3))
+    bins = int((stats["max"] - stats["min"]) / bw) if bw != 0.0 else 100
+    print(f"bins are {bins}")
     stats.update(
-        histogram_compute(
-            value_counts[~infinity_index].index.values,
-            summary["n_distinct"],
-            weights=value_counts[~infinity_index].values,
+        histogram_compute_spark(
+            series, bins, n_unique=summary["n_distinct"], name="histogram"
         )
     )
 
@@ -648,16 +639,19 @@ def describe_categorical_spark_1d(
     # Only run if at least 1 non-missing value
     value_counts = summary["value_counts_without_nan"]
 
-    finite_values_counts = value_counts[np.isfinite(value_counts)]
-
     summary.update(
         histogram_compute(
-            finite_values_counts, summary["n_distinct"], name="histogram_frequencies"
+            value_counts, summary["n_distinct"], name="histogram_frequencies"
         )
     )
 
+    infinity_values = [np.inf, -np.inf]
+    finite_values_counts = series.dropna.where(
+        series.dropna[series.name].isin(infinity_values)
+    )
+
     if chi_squared_threshold > 0.0:
-        summary["chi_squared"] = chi_square(histogram=value_counts.values)
+        summary["chi_squared"] = chi_square_spark(series)
 
     if check_length:
         summary.update(length_summary(series))

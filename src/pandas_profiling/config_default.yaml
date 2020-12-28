@@ -98,6 +98,7 @@ spark:
     quantile_error: 0.1
     scatter: False
     to_pandas_limit: 1000
+    histogram_bins : 0
 
 # Bivariate / Pairwise relations
 interactions:

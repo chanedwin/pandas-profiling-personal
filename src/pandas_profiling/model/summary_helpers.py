@@ -60,7 +60,7 @@ def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
     import pyspark.sql.functions as F
 
     # do not count length of nans
-    length = series.series_without_na.select(F.length(series.name)).toPandas().squeeze()
+    length = series.dropna.select(F.length(series.name)).toPandas().squeeze()
 
     summary.update({"length": length})
     summary.update(named_aggregate_summary(length, "length"))
@@ -403,7 +403,38 @@ def histogram_compute(finite_values, n_unique, name="histogram", weights=None):
     return stats
 
 
+def histogram_compute_spark(sparkseries, bins, n_unique, name="histogram"):
+    stats = {}
+    config_bins = config["spark"]["histogram_bins"].get(int)
+    bins = bins if config_bins == 0 else min(bins, n_unique)
+
+    spark_histogram = (
+        sparkseries.dropna.select(sparkseries.name)
+        .rdd.flatMap(lambda x: x)
+        .histogram(bins)
+    )
+
+    # Loading the Computed Histogram into a Pandas Dataframe for plotting
+    computed_bins = [i[0] for i in spark_histogram]
+    weights = [i[1] for i in spark_histogram]
+    stats[name] = np.histogram(computed_bins, bins=bins, weights=weights)
+    return stats
+
+
 def chi_square(values=None, histogram=None):
     if histogram is None:
         histogram, _ = np.histogram(values, bins="auto")
     return dict(chisquare(histogram)._asdict())
+
+
+def chi_square_spark(series):
+    from pyspark.ml.feature import StringIndexer, VectorAssembler
+    from pyspark.mllib.stat import Statistics
+
+    vector_name = series.name + "assembled"
+    vecAssembler = StringIndexer(inputCol=series.name, outputCol=vector_name)
+    vec = vecAssembler.fit(series.dropna).transform(series.dropna)
+    vec = vec.select(vector_name)
+    vec = vec.collect()
+    results = Statistics.chiSqTest(vec)
+    return {"statistic": results.statistic, "pvalue": results.pValue}

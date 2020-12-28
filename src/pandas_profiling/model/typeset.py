@@ -210,6 +210,7 @@ class SparkNumeric(VisionsBaseType):
             or str(series.type) == "LongType"
             or str(series.type) == "IntegerType"
             or str(series.type) == "ShortType"
+            or str(series.type) == "FloatType"
         )
 
 

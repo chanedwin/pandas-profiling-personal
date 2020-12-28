@@ -60,7 +60,7 @@ class SparkSeries(GenericSeries):
         super().__init__(series)
         self.series = series
         self.persist_bool = persist
-        self.series_without_na = self.compute_series_without_na()
+        self.dropna = self.compute_series_without_na()
 
     @property
     def type(self):
@@ -90,7 +90,7 @@ class SparkSeries(GenericSeries):
         Returns: internal spark series without nans
 
         """
-        self.series_without_na.unpersist()
+        self.dropna.unpersist()
 
     def fillna(self, fill=None) -> "SparkSeries":
         if fill is not None:
@@ -119,7 +119,7 @@ class SparkSeries(GenericSeries):
 
         # if series type is dict, handle that separately
         if isinstance(self.series.schema[0].dataType, MapType):
-            new_df = self.series_without_na.groupby(
+            new_df = self.dropna.groupby(
                 map_keys(self.series[self.name]).alias("key"),
                 map_values(self.series[self.name]).alias("value"),
             ).count()
@@ -130,16 +130,14 @@ class SparkSeries(GenericSeries):
             )
         else:
             value_counts = (
-                self.series_without_na.groupBy(self.name)
-                .count()
-                .orderBy("count", ascending=False)
+                self.dropna.groupBy(self.name).count().orderBy("count", ascending=False)
             )
         value_counts.persist()
         return value_counts
 
     @lru_cache()
     def count_na(self):
-        return self.n_rows - self.series_without_na.count()
+        return self.n_rows - self.dropna.count()
 
     def __len__(self):
         return self.n_rows
