@@ -607,6 +607,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats["monotonic_increase_strict"] = False
     stats["monotonic_decrease_strict"] = False
 
+    # this function only displays the top 1000 values for a histogram. This might be confusing if there are a
+    # lot of values of equal magnitude, but we cannot bring all the values to pandas display
+    # the alternative is to do this in spark natively, but it is not trivial
     stats.update(
         histogram_compute(
             value_counts.index.values,
