@@ -607,13 +607,11 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats["monotonic_increase_strict"] = False
     stats["monotonic_decrease_strict"] = False
 
-    # use Freedman Diaconis rule to compute histogram bins for spark
-    bw = 2 * stats["iqr"] * (stats["n"] ** (-1 / 3))
-    bins = int((stats["max"] - stats["min"]) / bw) if bw != 0.0 else 100
-    print(f"bins are {bins}")
     stats.update(
-        histogram_compute_spark(
-            series, bins, n_unique=summary["n_distinct"], name="histogram"
+        histogram_compute(
+            value_counts.index.values,
+            summary["n_distinct"],
+            weights=value_counts.values,
         )
     )
 
