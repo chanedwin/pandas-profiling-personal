@@ -60,7 +60,9 @@ class SparkSeries(GenericSeries):
         super().__init__(series)
         self.series = series
         self.persist_bool = persist
-        self.dropna = self.compute_series_without_na()
+        series_without_na = self.series.na.drop()
+        series_without_na.persist()
+        self.dropna = series_without_na
 
     @property
     def type(self):
@@ -73,16 +75,6 @@ class SparkSeries(GenericSeries):
     @property
     def empty(self) -> bool:
         return self.n_rows == 0
-
-    def compute_series_without_na(self):
-        """
-        Useful wrapper for getting the internal data series but with NAs dropped
-        Returns: internal spark series without nans
-
-        """
-        series_without_na = self.series.na.drop()
-        series_without_na.persist()
-        return series_without_na
 
     def unpersist_series_without_na(self):
         """

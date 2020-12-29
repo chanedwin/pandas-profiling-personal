@@ -94,7 +94,7 @@ correlations:
 # Spark specific correlations
 spark:
     persist: True
-    pool_size: 2
+    pool_size: 1
     quantile_error: 0.1
     scatter: False
     to_pandas_limit: 1000

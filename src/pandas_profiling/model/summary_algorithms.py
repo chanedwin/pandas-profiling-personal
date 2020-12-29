@@ -11,10 +11,8 @@ from pandas_profiling.config import config
 from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.model.summary_helpers import (
     chi_square,
-    chi_square_spark,
     file_summary,
     histogram_compute,
-    histogram_compute_spark,
     image_summary,
     length_summary,
     mad,
@@ -554,9 +552,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     value_counts = summary["value_counts_without_nan"]
 
     infinity_values = [np.inf, -np.inf]
-    summary["n_infinite"] = series.dropna.where(
-        series.dropna[series.name].isin(infinity_values)
-    ).count()
+    # summary["n_infinite"] = series.dropna.where(
+    #    series.dropna[series.name].isin(infinity_values)
+    # ).count()
 
     summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
 
@@ -567,21 +565,6 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     quantile_threshold = config["spark"]["quantile_error"].get(float)
 
     # manual MAD computation, refactor possible
-    median = series.dropna.stat.approxQuantile(series.name, [0.5], quantile_threshold)[
-        0
-    ]
-
-    mad = series.dropna.select(
-        (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
-    ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
-    stats.update(
-        {
-            "mad": mad,
-        }
-    )
-
-    stats["range"] = stats["max"] - stats["min"]
-
     stats.update(
         {
             f"{percentile:.0%}": value
@@ -594,10 +577,23 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
         }
     )
 
+    median = stats["50%"]
+
+    mad = series.dropna.select(
+        (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
+    ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
+    stats.update(
+        {
+            "mad": mad,
+        }
+    )
+
+    stats["range"] = stats["max"] - stats["min"]
+
     stats["iqr"] = stats["75%"] - stats["25%"]
     stats["cv"] = stats["std"] / stats["mean"] if stats["mean"] else np.NaN
     stats["p_zeros"] = stats["n_zeros"] / summary["n"]
-    stats["p_infinite"] = summary["n_infinite"] / summary["n"]
+    # stats["p_infinite"] = summary["n_infinite"] / summary["n"]
 
     # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
     # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
@@ -646,24 +642,27 @@ def describe_categorical_spark_1d(
         )
     )
 
-    infinity_values = [np.inf, -np.inf]
-    finite_values_counts = series.dropna.where(
-        series.dropna[series.name].isin(infinity_values)
-    )
+    # infinity_values = [np.inf, -np.inf]
+    # finite_values_counts = series.dropna.where(
+    #     series.dropna[series.name].isin(infinity_values)
+    # )
 
-    if chi_squared_threshold > 0.0:
-        summary["chi_squared"] = chi_square_spark(series)
+    # do not do chi_square for now, too slow
+    # if chi_squared_threshold > 0.0:
+    #    summary["chi_squared"] = chi_square_spark(series)
 
-    if check_length:
-        summary.update(length_summary(series))
-        summary.update(
-            histogram_compute(
-                summary["length"], summary["length"].nunique(), name="histogram_length"
-            )
-        )
+    # do not compute length histogram, might not be relevant for spark
+    # if check_length:
+    #  summary.update(length_summary(series))
+    # summary.update(
+    #     histogram_compute(
+    #          summary["length"], summary["length"].nunique(), name="histogram_length"
+    #      )
+    #  )
 
-    if check_unicode:
-        summary.update(unicode_summary(series))
+    # do not compute unicode checks, might not be relevant for spark
+    # if check_unicode:
+    #     summary.update(unicode_summary(series))
 
     # if coerce_str_to_date:
     #     summary["date_warning"] = warning_type_date(series)
