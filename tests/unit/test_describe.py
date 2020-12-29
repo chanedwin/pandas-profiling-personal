@@ -562,6 +562,7 @@ def expected_spark_results(expected_results):
 )
 def test_describe_df(column, describe_data, expected_results, summarizer, typeset):
     config["vars"]["num"]["low_categorical_threshold"].set(0)
+
     describe_data_frame = PandasDataFrame(pd.DataFrame({column: describe_data[column]}))
     if column == "somedate":
         describe_data_frame.get_pandas_df()["somedate"] = pd.to_datetime(
@@ -635,6 +636,7 @@ def test_describe_spark_df(
     spark_context,
 ):
     config["vars"]["num"]["low_categorical_threshold"].set(0)
+    config["spark"]["quantile_error"].set(0)
 
     spark = spark_session
 
