@@ -73,9 +73,8 @@ class Spearman(Correlation):
             # Can't compute correlations with 1 or less columns
             return None
 
-        # assemble all numeric columns into a vector
-        assembler = VectorAssembler(inputCols=numeric_columns, outputCol="features")
-        output_df = assembler.transform(df.get_spark_df().na.drop())
+        # get precomputed numeric vector
+        output_df = df.as_vector
 
         if len(output_df.head(1)) > 0:
             # perform correlation in spark, and get the results back in pandas
@@ -123,9 +122,8 @@ class Pearson(Correlation):
             # Can't compute correlations with 1 or less columns
             return None
 
-        # assemble all numeric columns into a vector
-        assembler = VectorAssembler(inputCols=numeric_columns, outputCol="features")
-        output_df = assembler.transform(df.get_spark_df().na.drop())
+        # get precomputed numeric vector
+        output_df = df.as_vector
 
         # perform correlation in spark, and get the results back in pandas
         if len(output_df.head(1)) > 0:

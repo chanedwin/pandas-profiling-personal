@@ -131,19 +131,6 @@ class GenericDataFrame(ABC):
         pass
 
     @abstractmethod
-    def dropna(self, subset: List[str]) -> "GenericDataFrame":
-        """
-        returns same dataframe type, but with nan rows dropped for the subset of columns
-
-        Args:
-            subset: columns to consider the rows to dropna
-
-        Returns:
-
-        """
-        pass
-
-    @abstractmethod
     def iteritems(self) -> List[Tuple[str, GenericSeries]]:
         """
         returns name and generic series type
@@ -204,21 +191,6 @@ class GenericDataFrame(ABC):
             with_replacement: boolean true or false
 
         Returns:
-
-        """
-        pass
-
-    @abstractmethod
-    def value_counts(self, column) -> pd.Series:
-        """
-        Get value counts of a series as a Pandas Series object
-
-
-        Args:
-            column: column to do value_count on
-
-        Returns: an ordered series (descending) where series index is the values to be counted
-        and the series values are the counts
 
         """
         pass
@@ -395,6 +367,20 @@ class SparkDataFrame(GenericDataFrame):
         super().__init__()
         self.df = df
         self.persist_bool = persist
+        df_without_na = self.df.na.drop()
+        df_without_na.persist()
+        self.dropna = df_without_na
+        from pyspark.ml.feature import VectorAssembler
+
+        # get all columns in df that are numeric as pearson works only on numeric columns
+        numeric_columns = self.get_numeric_columns()
+
+        if len(numeric_columns) > 1:
+            # Can't compute correlations with 1 or less columns
+            # assemble all numeric columns into a vector
+            assembler = VectorAssembler(inputCols=numeric_columns, outputCol="features")
+            output_df = assembler.transform(self.dropna)
+            self.as_vector = output_df
 
     @staticmethod
     def validate_same_type(obj) -> bool:
@@ -471,7 +457,6 @@ class SparkDataFrame(GenericDataFrame):
                 )
             ):
                 numeric_columns.append(field.name)
-
         return numeric_columns
 
     def get_categorical_columns(self) -> List[str]:
@@ -496,15 +481,6 @@ class SparkDataFrame(GenericDataFrame):
             withReplacement=with_replacement, frac=n / self.n_rows
         ).toPandas()
 
-    def value_counts(self, column):
-        # We can use toPandas here because the output should be somewhat smaller and its
-        # only a single row
-        # possible optimisation to just use pure spark objects
-        df = (
-            self.df.groupBy(column).count().orderBy("count", ascending=False).toPandas()
-        )
-        return pd.Series(df["count"].values, index=df["RAD"].values)
-
     def __len__(self) -> int:
         return self.n_rows
 
@@ -524,12 +500,16 @@ class SparkDataFrame(GenericDataFrame):
     def get_spark_df(self):
         return self.df
 
-    def dropna(self, subset):
-        return SparkDataFrame(self.df.na.drop(subset=subset), persist=self.persist_bool)
-
     def get_memory_usage(self, deep):
+        sample = self.n_rows ** (1 / 3)
+        percentage = sample / self.n_rows
+        inverse_percentage = 1 / percentage
         return (
-            100 * self.df.sample(fraction=0.01).toPandas().memory_usage(deep=deep).sum()
+            inverse_percentage
+            * self.df.sample(fraction=percentage)
+            .toPandas()
+            .memory_usage(deep=deep)
+            .sum()
         )
 
     def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
@@ -551,25 +531,23 @@ class SparkDataFrame(GenericDataFrame):
                 )
         return (
             converted_dataframe.groupBy(self.df.columns)
-            .agg(F.count("*"))
-            .filter(F.col("count(1)").cast("int") > 1)
-            .orderBy("count(1)", ascending=False)
+            .count()
+            .withColumn("count_int", F.col("count").alias("count_int").cast("int"))
+            .filter(F.col("count_int") > 1)
+            .orderBy("count_int", ascending=False)
             .limit(n)
             .toPandas()
         )
 
     def get_duplicate_rows_count(self, subset: List[str]) -> int:
-        import pyspark.sql.functions as F
-
-        temp_df = (
-            self.df.groupBy(self.df.columns)
-            .agg(F.count("*"))
-            .select(F.col("count(1)").alias("count").cast("int"))
-            .filter(F.col("count") > 1)
-            .toPandas()
+        # number of unique rows -> self.dropna.distinct().count()
+        # number of deduplicated rows - > self.dropna.dropDuplicates().count()
+        # number of deduplicated rows - number of unique rows = number of duplicate rows
+        num_duplicates = (
+            self.dropna.dropDuplicates().count() - self.dropna.distinct().count()
         )
 
-        return np.sum(temp_df["count"].values)
+        return num_duplicates
 
     def nan_counts(self):
         """

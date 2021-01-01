@@ -139,9 +139,15 @@ class SparkSeries(GenericSeries):
         Warning! this memory usage is only a sample
         TO-DO can we make this faster or not use a sample?
         """
+        sample = self.n_rows ** (1 / 3)
+        percentage = sample / self.n_rows
+        inverse_percentage = 1 / percentage
         return (
-            100
-            * self.series.sample(fraction=0.01).toPandas().memory_usage(deep=deep).sum()
+            inverse_percentage
+            * self.series.sample(fraction=percentage)
+            .toPandas()
+            .memory_usage(deep=deep)
+            .sum()
         )
 
     def get_spark_series(self):
@@ -154,3 +160,9 @@ class SparkSeries(GenericSeries):
     def unpersist(self):
         if self.persist_bool:
             return self.series.unpersist()
+
+    def distinct(self):
+        return self.dropna.distinct().count()
+
+    def unique(self):
+        return self.dropna.dropDuplicates().count()

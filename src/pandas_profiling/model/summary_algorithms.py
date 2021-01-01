@@ -491,8 +491,8 @@ def describe_supported_spark(
     count = series_description["count"]
 
     value_counts = series_description["value_counts_without_nan_spark"]
-    distinct_count = value_counts.count()
-    unique_count = value_counts.where("count = 1").count()
+    distinct_count = series.distinct()
+    unique_count = series.unique()
 
     stats = {
         "n_distinct": distinct_count,
@@ -552,9 +552,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     value_counts = summary["value_counts_without_nan"]
 
     infinity_values = [np.inf, -np.inf]
-    # summary["n_infinite"] = series.dropna.where(
-    #    series.dropna[series.name].isin(infinity_values)
-    # ).count()
+    summary["n_infinite"] = series.dropna.where(
+        series.dropna[series.name].isin(infinity_values)
+    ).count()
 
     summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
 
@@ -593,7 +593,7 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats["iqr"] = stats["75%"] - stats["25%"]
     stats["cv"] = stats["std"] / stats["mean"] if stats["mean"] else np.NaN
     stats["p_zeros"] = stats["n_zeros"] / summary["n"]
-    # stats["p_infinite"] = summary["n_infinite"] / summary["n"]
+    stats["p_infinite"] = summary["n_infinite"] / summary["n"]
 
     # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
     # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
