@@ -63,12 +63,7 @@ class SparkSeries(GenericSeries):
 
         # if series type is dict, handle that separately
         if isinstance(self.series.schema[0].dataType, MapType):
-            series = series.withColumn(
-                self.name,
-                array(map_keys(series["key"]), map_values(series["value"])).alias(
-                    "temp"
-                ),
-            ).select(self.temp.alias(self.name))
+            series= series.select(array(map_keys(series[self.name]), map_values(series[self.name])).alias(self.name))
         self.series = series
         self.persist_bool = persist
         series_without_na = self.series.na.drop()
