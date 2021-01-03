@@ -131,4 +131,3 @@ jobs:
       - run: make install
       - run: make install-spark-ci
       - run: make test-spark
-      - run: codecov -F py${{ matrix.python-version }}-${{ matrix.os }}-pandas${{ matrix.pandas }}
