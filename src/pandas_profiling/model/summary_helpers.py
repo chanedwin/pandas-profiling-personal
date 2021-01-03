@@ -96,8 +96,10 @@ def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
     import pyspark.sql.functions as F
 
     length_values_sample = config["spark"]["length_values_sample"].get(int)
-
-    percentage = length_values_sample / series.n_rows
+    if length_values_sample >= series.n_rows:
+        percentage = 1.0
+    else:
+        percentage = length_values_sample / series.n_rows
     # do not count length of nans
     length = (
         series.dropna.select(F.length(series.name))

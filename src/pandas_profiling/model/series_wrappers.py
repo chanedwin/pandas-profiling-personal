@@ -58,6 +58,17 @@ class SparkSeries(GenericSeries):
 
     def __init__(self, series, persist=True):
         super().__init__(series)
+        from pyspark.sql.functions import array, map_keys, map_values
+        from pyspark.sql.types import MapType
+
+        # if series type is dict, handle that separately
+        if isinstance(self.series.schema[0].dataType, MapType):
+            series = series.withColumn(
+                self.name,
+                array(map_keys(series["key"]), map_values(series["value"])).alias(
+                    "temp"
+                ),
+            ).select(self.temp.alias(self.name))
         self.series = series
         self.persist_bool = persist
         series_without_na = self.series.na.drop()
