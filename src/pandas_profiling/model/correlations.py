@@ -245,7 +245,7 @@ class Cramers(Correlation):
                                 was not provided. Original Error : {e}"""
                 )
         else:
-            if not confusion_matrix:
+            if not isinstance(confusion_matrix, pd.DataFrame):
                 raise ValueError(
                     "confusion matrix must be specificed if precomputed matrix not provided"
                 )
