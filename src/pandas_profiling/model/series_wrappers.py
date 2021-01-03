@@ -95,8 +95,7 @@ class SparkSeries(GenericSeries):
     def n_rows(self) -> int:
         return self.series.count()
 
-    @lru_cache()
-    def value_counts(self, n=1000):
+    def value_counts(self):
         """
 
         Args:
@@ -121,9 +120,7 @@ class SparkSeries(GenericSeries):
                 .orderBy("count", ascending=False)
             )
         else:
-            value_counts = (
-                self.dropna.groupBy(self.name).count().orderBy("count", ascending=False)
-            )
+            value_counts = self.dropna.groupBy(self.name).count()
         value_counts.persist()
         return value_counts
 
@@ -155,11 +152,11 @@ class SparkSeries(GenericSeries):
 
     def persist(self):
         if self.persist_bool:
-            return self.series.persist()
+            self.series.persist()
 
     def unpersist(self):
         if self.persist_bool:
-            return self.series.unpersist()
+            self.series.unpersist()
 
     def distinct(self):
         return self.dropna.distinct().count()

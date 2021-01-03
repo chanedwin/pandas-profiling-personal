@@ -461,7 +461,11 @@ def describe_counts_spark(
 
     # max number of rows to visualise on histogram, most common values taken
     to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
-    limited_results = spark_value_counts.limit(to_pandas_limit).toPandas()
+    limited_results = (
+        spark_value_counts.orderBy("count", ascending=False)
+        .limit(to_pandas_limit)
+        .toPandas()
+    )
 
     limited_results = (
         limited_results.sort_values("count", ascending=False)
@@ -490,7 +494,6 @@ def describe_supported_spark(
     # number of non-NaN observations in the Series
     count = series_description["count"]
 
-    value_counts = series_description["value_counts_without_nan_spark"]
     distinct_count = series.distinct()
     unique_count = series.unique()
 
@@ -546,7 +549,6 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
 
     import pyspark.sql.functions as F
 
-    chi_squared_threshold = config["vars"]["num"]["chi_squared_threshold"].get(float)
     quantiles = config["vars"]["num"]["quantiles"].get(list)
 
     value_counts = summary["value_counts_without_nan"]
@@ -603,8 +605,9 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
     stats["monotonic_increase_strict"] = False
     stats["monotonic_decrease_strict"] = False
 
-    # this function only displays the top 1000 values for a histogram. This might be confusing if there are a
-    # lot of values of equal magnitude, but we cannot bring all the values to pandas display
+    # this function only displays the top N (see config) values for a histogram.
+    # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
+    # display in pandas display
     # the alternative is to do this in spark natively, but it is not trivial
     stats.update(
         histogram_compute(
@@ -629,40 +632,36 @@ def describe_categorical_spark_1d(
     Returns:
         A dict containing calculated series description values.
     """
-    chi_squared_threshold = config["vars"]["num"]["chi_squared_threshold"].get(float)
     check_length = config["vars"]["cat"]["length"].get(bool)
     check_unicode = config["vars"]["cat"]["unicode"].get(bool)
 
     # Only run if at least 1 non-missing value
     value_counts = summary["value_counts_without_nan"]
 
+    # this function only displays the top N (see config) values for a histogram.
+    # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
+    # display in pandas display
+    # the alternative is to do this in spark natively, but it is not trivial
     summary.update(
         histogram_compute(
             value_counts, summary["n_distinct"], name="histogram_frequencies"
         )
     )
 
-    # infinity_values = [np.inf, -np.inf]
-    # finite_values_counts = series.dropna.where(
-    #     series.dropna[series.name].isin(infinity_values)
-    # )
-
     # do not do chi_square for now, too slow
     # if chi_squared_threshold > 0.0:
     #    summary["chi_squared"] = chi_square_spark(series)
 
-    # do not compute length histogram, might not be relevant for spark
-    # if check_length:
-    #  summary.update(length_summary(series))
-    # summary.update(
-    #     histogram_compute(
-    #          summary["length"], summary["length"].nunique(), name="histogram_length"
-    #      )
-    #  )
+    if check_length:
+        summary.update(length_summary(series))
+        summary.update(
+            histogram_compute(
+                summary["length"], summary["length"].nunique(), name="histogram_length"
+            )
+        )
 
-    # do not compute unicode checks, might not be relevant for spark
-    # if check_unicode:
-    #     summary.update(unicode_summary(series))
+    if check_unicode:
+        summary.update(unicode_summary(series))
 
     # if coerce_str_to_date:
     #     summary["date_warning"] = warning_type_date(series)
