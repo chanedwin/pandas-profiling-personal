@@ -191,6 +191,30 @@ def hash_dataframe(df):
     return joblib.hash(df)
 
 
+def get_appropriate_wrapper(df):
+    """
+    Wrap data type with proper engine from get_implemented_engines
+
+    Raises NotImplementedError if no valid engine found
+
+    Args:
+        df: the dataframe to be profiled - currently Spark and Pandas dataframes are supported
+
+    Returns: An implementation of the GenericDataFrame object, currently either SparkDataFrame or PandasDataFrame
+
+    """
+    from pandas_profiling.model.dataframe_wrappers import get_implemented_engines
+
+    implemented_engines = get_implemented_engines()
+    for engine in implemented_engines:
+        if engine.check_if_corresponding_engine(df):
+            return engine
+
+    raise NotImplementedError(
+        f"""Datatype is currently not supported. Support datatypes are {implemented_engines}"""
+    )
+
+
 def slugify(value, allow_unicode=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
