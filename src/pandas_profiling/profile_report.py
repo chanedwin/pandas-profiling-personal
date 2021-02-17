@@ -60,6 +60,19 @@ class ProfileReport(SerializeReport):
         if df is None and not lazy:
             raise ValueError("Can init a not-lazy ProfileReport with no DataFrame")
 
+        if df is not None:
+            # get appropriate backend
+            df_wrapper = get_appropriate_wrapper(df)
+            # preprocess df (if required)
+            processed_df = df_wrapper.preprocess(df)
+            # wrap and store df
+            self.df = df_wrapper(processed_df)
+            # set appropriate default config
+            if isinstance(self.df, SparkDataFrame):
+                config.set_default_config("spark")
+            else:
+                config.set_default_config("pandas")
+
         if config_file:
             config.set_file(config_file)
         elif minimal:
@@ -79,6 +92,8 @@ class ProfileReport(SerializeReport):
         if orange_mode:
             config.set_arg_group("orange_mode")
 
+        config.set_kwargs(kwargs)
+
         self.df = None
         self._df_hash = -1
         self._description_set = None
@@ -90,19 +105,6 @@ class ProfileReport(SerializeReport):
         self._json = None
         self._typeset = None
         self._summarizer = None
-
-        if df is not None:
-            # get appropriate backend
-            df_wrapper = get_appropriate_wrapper(df)
-            # preprocess df (if required)
-            processed_df = df_wrapper.preprocess(df)
-            # wrap and store df
-            self.df = df_wrapper(processed_df)
-
-        if config.is_default and isinstance(self.df, SparkDataFrame):
-            config.set_spark()
-
-        config.set_kwargs(kwargs)
 
         if not lazy:
             # Trigger building the report structure
