@@ -100,6 +100,15 @@ correlations:
       warn_high_correlations: True
       threshold: 0.9
 
+# Spark specific correlations
+spark:
+    persist: True
+    pool_size: 1
+    quantile_error: 0.1
+    scatter: False
+    to_pandas_limit: 100
+    length_values_sample: 10000
+    histogram_bins : 0
 
 # Bivariate / Pairwise relations
 interactions:

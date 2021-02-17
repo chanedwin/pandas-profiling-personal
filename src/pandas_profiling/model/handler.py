@@ -64,6 +64,9 @@ def get_render_map():
         ppt.File: render_algorithms.render_file,
         ppt.Image: render_algorithms.render_image,
         ppt.Unsupported: render_algorithms.render_generic,
+        ppt.SparkNumeric: render_algorithms.render_real,
+        ppt.SparkUnsupported: render_algorithms.render_generic,
+        ppt.SparkCategorical: render_algorithms.render_categorical,
     }
 
     return render_map

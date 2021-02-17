@@ -191,6 +191,30 @@ def hash_dataframe(df):
     return joblib.hash(df)
 
 
+def get_appropriate_wrapper(df):
+    """
+    Wrap data type with proper backend from implemented_backend
+
+    Raises NotImplementedError if no valid backend found
+
+    Args:
+        df:
+
+    Returns:
+
+    """
+    from pandas_profiling.model.dataframe_wrappers import get_implemented_datatypes
+
+    implemented_backends = get_implemented_datatypes()
+    for backend in implemented_backends:
+        if backend.validate_same_type(df):
+            return backend
+
+    raise NotImplementedError(
+        f"""Datatype is currently not supported. Support datatypes are {implemented_backends}"""
+    )
+
+
 def slugify(value, allow_unicode=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py

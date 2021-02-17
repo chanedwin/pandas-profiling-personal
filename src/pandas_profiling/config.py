@@ -5,7 +5,7 @@ from typing import Union
 
 import confuse
 
-from pandas_profiling.utils.paths import get_config_default
+from pandas_profiling.utils.paths import get_config, get_config_default
 
 
 class Config:
@@ -165,6 +165,9 @@ class Config:
     def clear(self):
         self.config = confuse.Configuration("PandasProfiling", __name__, read=False)
         self.set_file(str(get_config_default()))
+
+    def set_spark(self):
+        self.set_file(str(get_config("config_default_spark.yaml")))
 
     @property
     def is_default(self):

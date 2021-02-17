@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from pandas_profiling.config import config
+from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.model.describe import describe as describe_df
 from pandas_profiling.model.messages import MessageType
 from pandas_profiling.model.summarizer import PandasProfilingSummarizer, format_summary
@@ -17,7 +18,7 @@ from pandas_profiling.report.presentation.flavours.html.templates import (
     create_html_assets,
 )
 from pandas_profiling.serialize_report import SerializeReport
-from pandas_profiling.utils.dataframe import hash_dataframe, rename_index
+from pandas_profiling.utils.dataframe import get_appropriate_wrapper, hash_dataframe
 from pandas_profiling.utils.paths import get_config
 
 
@@ -78,8 +79,6 @@ class ProfileReport(SerializeReport):
         if orange_mode:
             config.set_arg_group("orange_mode")
 
-        config.set_kwargs(kwargs)
-
         self.df = None
         self._df_hash = -1
         self._description_set = None
@@ -93,8 +92,17 @@ class ProfileReport(SerializeReport):
         self._summarizer = None
 
         if df is not None:
-            # preprocess df
-            self.df = self.preprocess(df)
+            # get appropriate backend
+            df_wrapper = get_appropriate_wrapper(df)
+            # preprocess df (if required)
+            processed_df = df_wrapper.preprocess(df)
+            # wrap and store df
+            self.df = df_wrapper(processed_df)
+
+        if config.is_default and isinstance(self.df, SparkDataFrame):
+            config.set_spark()
+
+        config.set_kwargs(kwargs)
 
         if not lazy:
             # Trigger building the report structure
@@ -431,34 +439,6 @@ class ProfileReport(SerializeReport):
     def __repr__(self):
         """Override so that Jupyter Notebook does not print the object."""
         return ""
-
-    @staticmethod
-    def preprocess(df):
-        """Preprocess the dataframe
-
-        - Appends the index to the dataframe when it contains information
-        - Rename the "index" column to "df_index", if exists
-        - Convert the DataFrame's columns to str
-
-        Args:
-            df: the pandas DataFrame
-
-        Returns:
-            The preprocessed DataFrame
-        """
-        # Treat index as any other column
-        if (
-            not pd.Index(np.arange(0, len(df))).equals(df.index)
-            or df.index.dtype != np.int64
-        ):
-            df = df.reset_index()
-
-        # Rename reserved column names
-        df = rename_index(df)
-
-        # Ensure that columns are strings
-        df.columns = df.columns.astype("str")
-        return df
 
     @staticmethod
     def clear_config():
