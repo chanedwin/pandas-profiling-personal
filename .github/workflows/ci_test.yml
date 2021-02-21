@@ -143,6 +143,7 @@ jobs:
 
   coverage:
     runs-on: ${{ matrix.os }}
+    needs: [ test_pandas, test_spark ]
     strategy:
       matrix:
         os: [ ubuntu-latest ]
