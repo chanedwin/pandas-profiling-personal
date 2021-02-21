@@ -153,7 +153,7 @@ jobs:
         hadoop: [ 2.7 ]
         java_home: [ /usr/lib/jvm/java-8-openjdk-amd64 ]
 
-    name: Coverage | python ${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.pandas }}, spark${{ matrix.spark }})
+    name: Coverage | python ${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.pandas }}, spark${{ matrix.spark }}
     env:
       JAVA_HOME: ${{ matrix.java_home }}
       SPARK_VERSION: ${{ matrix.spark }}
