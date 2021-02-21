@@ -239,7 +239,7 @@ spark
 ```python
 import numpy as np
 import pandas as pd
-from pandas_profiling import ProfileReport
+from spark_profiling import ProfileReport
 
 pdf = pd.DataFrame(
     np.random.rand(100, 5),
@@ -252,10 +252,10 @@ To generate the report, run:
 profile = ProfileReport(sdf, title="Spark Profiling Report")
 ```
 
-By default for spark, all correlations except pearson's as well as scatter matrixes are disabled as they are computationally intensive, requiring much more computation time.
+By default, for Spark, all correlations except pearson's as well as scatter matrices are disabled as they are computationally intensive, requiring much more computation time.
 To enable them you can head to the advanced configuration docs on the advanced usage page [here](https://pandas-profiling.github.io/pandas-profiling/docs/master/rtd/pages/advanced_usage.html)
 
-By default, spark-profiling also persists all dataframes and intermediate dataframes to speed up computation.
+By default, `spark-profiling` also persists all dataframes and intermediate dataframes to speed up computation.
 You can also disable this feature in the config.
 
 ### Command line usage
