@@ -11,6 +11,7 @@ from pandas_profiling.model.dataframe_wrappers import (
     UNWRAPPED_DATAFRAME_WARNING,
     GenericDataFrame,
     SparkDataFrame,
+    get_appropriate_wrapper,
 )
 from pandas_profiling.model.duplicates import get_duplicates
 from pandas_profiling.model.sample import Sample, get_sample
@@ -23,7 +24,6 @@ from pandas_profiling.model.summary import (
 )
 from pandas_profiling.model.typeset import Numeric, SparkNumeric, Unsupported
 from pandas_profiling.utils.common import test_for_pyspark_pyarrow_incompatibility
-from pandas_profiling.utils.dataframe import get_appropriate_wrapper
 from pandas_profiling.version import __version__
 
 
