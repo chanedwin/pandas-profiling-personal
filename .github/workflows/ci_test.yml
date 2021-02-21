@@ -3,7 +3,7 @@ name: Tests and Coverage
 on: [push, pull_request]
 
 jobs:
-  build_pandas:
+  test_pandas:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,7 +33,7 @@ jobs:
             pandas: "pandas>1.1"
             numpy: "numpy"
 
-    name: python ${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.pandas }}, ${{ matrix.numpy }}
+    name: Tests Pandas | python ${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.pandas }}, ${{ matrix.numpy }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup python
@@ -71,13 +71,13 @@ jobs:
       - run: make install
       - run: make test_pandas
 
-  build_spark:
+  test_spark:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ ubuntu-latest ]
         python-version: [ 3.6, 3.7, 3.8]
-        pandas: ["==0.25.3", "==1.0.5", ">1.1"]
+        pandas: ["pandas==0.25.3", "pandas==1.0.5", "pandas>1.1"]
         spark: ["2.3.0", "2.4.7", "3.0.1"]
         hadoop: [ 2.7 ]
         numpy: ["numpy==1.19.5"]
@@ -94,9 +94,7 @@ jobs:
 #            python-version: 3.6
 #            pandas: ">1.1"
 
-
-
-    name: CI Tests Spark (py${{ matrix.python-version }}, ${{ matrix.os }}, pandas${{ matrix.pandas }}, spark${{ matrix.spark }})
+    name: Tests Spark | python ${{ matrix.python-version }}, ${{ matrix.os }}, spark${{ matrix.spark }}, ${{ matrix.pandas }}, ${{ matrix.numpy }}
     env:
       JAVA_HOME: ${{ matrix.java_home }}
       SPARK_VERSION: ${{ matrix.spark }}
@@ -133,29 +131,29 @@ jobs:
             ${{ runner.os }}-${{ matrix.pandas }}-pip-
       - run: |
           pip install --upgrade pip setuptools wheel
-          pip install pytest-spark>=0.6.0
-          pip install pyarrow==1.0.1
+          pip install pytest-spark>=0.6.0 pyarrow==1.0.1
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-          pip install "pandas${{ matrix.pandas }}" "${{ matrix.numpy }}"
+          pip install "${{ matrix.pandas }}" "${{ matrix.numpy }}"
       - if: ${{ matrix.spark != '3.0.1' }}
         run: echo "ARROW_PRE_0_15_IPC_FORMAT=1" >> $GITHUB_ENV
       - run: make install
       - run: make install-spark-ci
-      - run: make test-spark
+      - run: make test_spark
 
-  build_coverage:
+  coverage:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ ubuntu-latest ]
         python-version: [3.8]
-        pandas: [">1.1"]
+        pandas: ["pandas>1.1"]
+        numpy: [ "numpy==1.19.5" ]
         spark: ["3.0.1"]
         hadoop: [ 2.7 ]
         java_home: [ /usr/lib/jvm/java-8-openjdk-amd64 ]
 
-    name: CI Tests Coverage (py${{ matrix.python-version }}, ${{ matrix.os }}, pandas${{ matrix.pandas }}, spark${{ matrix.spark }})
+    name: Coverage | python ${{ matrix.python-version }}, ${{ matrix.os }}, ${{ matrix.pandas }}, spark${{ matrix.spark }})
     env:
       JAVA_HOME: ${{ matrix.java_home }}
       SPARK_VERSION: ${{ matrix.spark }}
@@ -192,13 +190,11 @@ jobs:
             ${{ runner.os }}-${{ matrix.pandas }}-pip-
       - run: |
           pip install --upgrade pip setuptools wheel
-          pip install pytest-spark>=0.6.0
-          pip install pyarrow>=1.0.1
+          pip install pytest-spark>=0.6.0 pyarrow>=1.0.1
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-          pip install "pandas${{ matrix.pandas }}"
-          sudo apt-get install python3-dev gcc
+          pip install "${{ matrix.pandas }}" "${{ matrix.numpy }}"
       - run: make install
       - run: make install-spark-ci
       - run: make test_cov
-      - run: codecov -F py${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.pandas }}-${{ matrix.numpy }}
+      - run: codecov -F python${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.pandas }}-${{ matrix.numpy }}

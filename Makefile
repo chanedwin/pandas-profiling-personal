@@ -31,7 +31,7 @@ test_cov:
 	pandas_profiling -h
 	make typing
 
-test-spark:
+test_spark:
 	pytest -m sparktest tests/unit/
 
 examples:
