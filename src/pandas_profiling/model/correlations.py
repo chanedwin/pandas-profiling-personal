@@ -26,15 +26,15 @@ from pandas_profiling.model.typeset import (
 
 
 class Correlation:
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
 
 class Spearman(Correlation):
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         """
         This function should return the spearman correlation between all numerical columns in the dataframe provided,
@@ -89,8 +89,8 @@ class Spearman(Correlation):
 
 
 class Pearson(Correlation):
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         """
         This function should return the Pearson correlation between all numerical columns in the dataframe provided,
@@ -144,8 +144,8 @@ class Pearson(Correlation):
 
 
 class Kendall(Correlation):
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         """
         This function should return the Kendall's rank correlation between all numerical columns in the dataframe provided,
@@ -287,8 +287,8 @@ class Cramers(Correlation):
                 corr = np.sqrt(phi2corr / rkcorr)
         return corr
 
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         """
         This function should return the Cramer's correlation between all categorical columns in the dataframe provided,
@@ -452,8 +452,8 @@ class Cramers(Correlation):
 
 
 class PhiK(Correlation):
-    @staticmethod
     @singledispatchmethod
+    @staticmethod
     def compute(df, summary):
         """
         This function should return the PhiK's correlation between all columns (categorical and numerical) in the dataframe provided,
