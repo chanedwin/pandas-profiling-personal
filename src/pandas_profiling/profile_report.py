@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 
 from pandas_profiling.config import config
 from pandas_profiling.expectations_report import ExpectationsReport
-from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
+from pandas_profiling.model.dataframe_wrappers import get_appropriate_wrapper
 from pandas_profiling.model.describe import describe as describe_df
 from pandas_profiling.model.messages import MessageType
 from pandas_profiling.model.sample import Sample
@@ -21,7 +21,7 @@ from pandas_profiling.report.presentation.flavours.html.templates import (
     create_html_assets,
 )
 from pandas_profiling.serialize_report import SerializeReport
-from pandas_profiling.utils.dataframe import get_appropriate_wrapper, hash_dataframe
+from pandas_profiling.utils.dataframe import hash_dataframe
 from pandas_profiling.utils.paths import get_config
 
 
@@ -83,10 +83,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
             # wrap and store df
             self.df = df_wrapper(processed_df)
             # set appropriate default config
-            if isinstance(self.df, SparkDataFrame):
-                config.set_default_config("spark")
-            else:
-                config.set_default_config("pandas")
+            config.set_default_config(df_wrapper.engine)
 
         if config_file:
             config.set_file(config_file)

@@ -67,19 +67,12 @@ def describe(
 
         # save the dataframe to speed up compute time
 
-        if config["spark"]["persist"]:
-            df.persist_bool = config["spark"]["persist"]
-            df.persist()
-        else:
-            df.persist_bool = False
+        df.persist_bool = config["spark"]["persist"].get(bool)
+        df.persist()
 
     disable_progress_bar = not config["progress_bar"].get(bool)
 
     date_start = datetime.utcnow()
-
-    # if there are specific config for each correlation, then use those
-
-    correlation_key = "calculate"
 
     correlation_names = [
         correlation_name
@@ -90,7 +83,7 @@ def describe(
             "phi_k",
             "cramers",
         ]
-        if config["correlations"][correlation_name][correlation_key].get(bool)
+        if config["correlations"][correlation_name]["calculate"].get(bool)
     ]
 
     number_of_tasks = 8 + len(df.columns) + len(correlation_names)
@@ -111,10 +104,11 @@ def describe(
             for column, type_name in variables.items()
             if type_name != Unsupported
         ]
+
         interval_columns = [
             column
             for column, type_name in variables.items()
-            if type_name == Numeric or type_name == SparkNumeric
+            if type_name in [Numeric, SparkNumeric]
         ]
         pbar.update()
 
@@ -133,16 +127,12 @@ def describe(
         }
 
         # Scatter matrix -> if is spark and config["spark"]["scatter"] is False, don't scatter matrix
-        if not (
-            isinstance(df, SparkDataFrame) and not config["spark"]["scatter"].get(bool)
-        ):
-            pbar.set_postfix_str("Get scatter matrix")
+        pbar.set_postfix_str("Get scatter matrix")
+        if not isinstance(df, SparkDataFrame) or config["spark"]["scatter"].get(bool):
             scatter_matrix = get_scatter_matrix(df, interval_columns)
-            pbar.update()
         else:
-            pbar.set_postfix_str("Get scatter matrix")
             scatter_matrix = {}
-            pbar.update()
+        pbar.update()
 
         # Table statistics
         pbar.set_postfix_str("Get table statistics")

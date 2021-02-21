@@ -20,7 +20,7 @@ class Sample:
 
 @singledispatch
 def get_sample(df: GenericDataFrame) -> list:
-    raise NotImplementedError("This method is not implemented ")
+    raise NotImplementedError("This method is not implemented.")
 
 
 @get_sample.register(PandasDataFrame)

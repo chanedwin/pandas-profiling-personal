@@ -16,8 +16,9 @@ from pandas_profiling.model.dataframe_wrappers import (
     GenericDataFrame,
     PandasDataFrame,
     SparkDataFrame,
+    get_appropriate_wrapper,
 )
-from pandas_profiling.model.messages import (  # warning_type_date,
+from pandas_profiling.model.messages import (
     check_correlation_messages,
     check_table_messages,
     check_variable_messages,
@@ -30,7 +31,6 @@ from pandas_profiling.model.typeset import (
     SparkUnsupported,
     Unsupported,
 )
-from pandas_profiling.utils.dataframe import get_appropriate_wrapper
 from pandas_profiling.visualisation.missing import (
     missing_bar,
     missing_dendrogram,
@@ -183,9 +183,8 @@ def get_table_stats(df: GenericDataFrame, variable_stats: dict) -> dict:
     Returns:
         A dictionary that contains the table statistics.
     """
-    data_type = type(df)
     raise NotImplementedError(
-        f"get_table_stats is not implemented for datatype {data_type}"
+        f"get_table_stats is not implemented for datatype {type(df)}"
     )
 
 
@@ -300,9 +299,8 @@ def get_missing_diagrams(df: GenericDataFrame, table_stats: dict) -> dict:
     Returns:
         A dictionary containing the base64 encoded plots for each diagram that is active in the config (matrix, bar, heatmap, dendrogram).
     """
-    data_type = type(df)
     raise NotImplementedError(
-        f"get_missing_diagrams is not implemented for datatype {data_type}"
+        f"get_missing_diagrams is not implemented for datatype {type(df)}"
     )
 
 
@@ -441,9 +439,8 @@ def _get_missing_diagrams_spark(df: SparkDataFrame, table_stats: dict) -> dict:
 
 @singledispatch
 def get_scatter_matrix(df, continuous_variables):
-    data_type = type(df)
     raise NotImplementedError(
-        f"get_table_stats is not implemented for datatype {data_type}"
+        f"get_table_stats is not implemented for datatype {type(df)}"
     )
 
 

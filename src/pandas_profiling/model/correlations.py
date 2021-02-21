@@ -26,16 +26,15 @@ from pandas_profiling.model.typeset import (
 
 
 class Correlation:
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implementated for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
 
 class Spearman(Correlation):
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
         """
         This function should return the spearman correlation between all numerical columns in the dataframe provided,
@@ -53,16 +52,15 @@ class Spearman(Correlation):
         Returns: pandas dataframes corresponding to correlation matrix based on Spearman correlation,
                 with both rows and columns containing the original column names
         """
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implementated for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
-    @compute.register(PandasDataFrame)
     @staticmethod
+    @compute.register(PandasDataFrame)
     def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="spearman")
 
-    @compute.register(SparkDataFrame)
     @staticmethod
+    @compute.register(SparkDataFrame)
     def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         TODO - Optimise this in Spark, cheating for now
@@ -91,8 +89,8 @@ class Spearman(Correlation):
 
 
 class Pearson(Correlation):
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
         """
         This function should return the Pearson correlation between all numerical columns in the dataframe provided,
@@ -108,26 +106,18 @@ class Pearson(Correlation):
         Returns: pandas dataframes corresponding to correlation matrix based on Pearson correlation,
                 with both rows and columns containing the original column names
         """
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implemented for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
-    @compute.register(PandasDataFrame)
     @staticmethod
+    @compute.register(PandasDataFrame)
     def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="pearson")
 
-    @compute.register(SparkDataFrame)
     @staticmethod
+    @compute.register(SparkDataFrame)
     def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         TODO - Optimise this in Spark, cheating for now
-
-        Args:
-            df:
-            summary:
-
-        Returns:
-
         """
         from pyspark.ml.stat import Correlation
 
@@ -154,8 +144,8 @@ class Pearson(Correlation):
 
 
 class Kendall(Correlation):
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
         """
         This function should return the Kendall's rank correlation between all numerical columns in the dataframe provided,
@@ -171,16 +161,15 @@ class Kendall(Correlation):
         Returns: pandas dataframes corresponding to correlation matrix based on Kendall correlation,
                 with both rows and columns containing the original column names
         """
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implemented for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
-    @compute.register(PandasDataFrame)
     @staticmethod
+    @compute.register(PandasDataFrame)
     def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         return df.get_pandas_df().corr(method="kendall")
 
-    @compute.register(SparkDataFrame)
     @staticmethod
+    @compute.register(SparkDataFrame)
     def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         Use pandasUDF to compute this first, but probably can be optimised further
@@ -298,8 +287,8 @@ class Cramers(Correlation):
                 corr = np.sqrt(phi2corr / rkcorr)
         return corr
 
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
         """
         This function should return the Cramer's correlation between all categorical columns in the dataframe provided,
@@ -315,11 +304,10 @@ class Cramers(Correlation):
         Returns: pandas dataframes corresponding to correlation matrix based on Cramer's V correlation,
                 with both rows and columns containing the original column names
         """
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implementated for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
-    @compute.register(PandasDataFrame)
     @staticmethod
+    @compute.register(PandasDataFrame)
     def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         threshold = config["categorical_maximum_correlation_distinct"].get(int)
 
@@ -351,8 +339,8 @@ class Cramers(Correlation):
             correlation_matrix.loc[name1, name2] = correlation_matrix.loc[name2, name1]
         return correlation_matrix
 
-    @compute.register(SparkDataFrame)
     @staticmethod
+    @compute.register(SparkDataFrame)
     def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
 
@@ -439,11 +427,12 @@ class Cramers(Correlation):
 
             # use computed chi_square values to compute cramers statistic
             for other_col, chisq in chi_squares:
-                precomputed = {}
-                precomputed["chi2"] = chisq
-                precomputed["n"] = n_rows
-                precomputed["r"] = distinct_counts[col["indexed"]]
-                precomputed["k"] = distinct_counts[other_col["indexed"]]
+                precomputed = {
+                    "chi2": chisq,
+                    "n": n_rows,
+                    "r": distinct_counts[col["indexed"]],
+                    "k": distinct_counts[other_col["indexed"]],
+                }
 
                 # when saving results, use back original col names
                 correlation_matrix.loc[
@@ -463,8 +452,8 @@ class Cramers(Correlation):
 
 
 class PhiK(Correlation):
-    @singledispatchmethod
     @staticmethod
+    @singledispatchmethod
     def compute(df, summary):
         """
         This function should return the PhiK's correlation between all columns (categorical and numerical) in the dataframe provided,
@@ -480,11 +469,10 @@ class PhiK(Correlation):
         Returns: pandas dataframes corresponding to correlation matrix based on PhiK correlation,
                 with both rows and columns containing the original column names
         """
-        df_type = type(df)
-        raise NotImplementedError(f"Not Implementated for dataframe_type {df_type}")
+        raise NotImplementedError(f"Not Implemented for dataframe type {type(df)}")
 
-    @compute.register(PandasDataFrame)
     @staticmethod
+    @compute.register(PandasDataFrame)
     def _compute_pandas(df: PandasDataFrame, summary) -> Optional[pd.DataFrame]:
         threshold = config["categorical_maximum_correlation_distinct"].get(int)
         intcols = {
@@ -518,8 +506,8 @@ class PhiK(Correlation):
 
         return correlation
 
-    @compute.register(SparkDataFrame)
     @staticmethod
+    @compute.register(SparkDataFrame)
     def _compute_spark(df: SparkDataFrame, summary) -> Optional[pd.DataFrame]:
         """
         Use pandasUDF to compute this first, but probably can be optimised further

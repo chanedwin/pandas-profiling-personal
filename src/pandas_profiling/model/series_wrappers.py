@@ -103,7 +103,7 @@ class SparkSeries:
     def memory_usage(self, deep):
         """
         Warning! this memory usage is only a sample
-        TO-DO can we make this faster or not use a sample?
+        TODO: can we make this faster or not use a sample?
         """
         sample = self.n_rows ** (1 / 3)
         percentage = sample / self.n_rows

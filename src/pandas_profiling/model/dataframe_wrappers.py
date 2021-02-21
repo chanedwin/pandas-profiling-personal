@@ -216,6 +216,8 @@ class PandasDataFrame(GenericDataFrame):
 
     """
 
+    engine = "pandas"
+
     def __init__(self, df):
         super().__init__()
         # self.df holds the underlying data object
@@ -302,7 +304,7 @@ class PandasDataFrame(GenericDataFrame):
     def __len__(self) -> int:
         return self.n_rows
 
-    def get_memory_usage(self, deep=False) -> pd.Series:
+    def get_memory_usage(self, deep: bool = False) -> pd.Series:
         return self.df.memory_usage(deep=deep).sum()
 
     def __getitem__(self, key):
@@ -364,6 +366,8 @@ class SparkDataFrame(GenericDataFrame):
     Note that spark commands must NEVER be called during the pandas workflow of profiling, as that means
     people would need to install pyspark to profile pandas dataframes which is very bad design.
     """
+
+    engine = "spark"
 
     def __init__(self, df, persist=True):
         super().__init__()
@@ -479,7 +483,7 @@ class SparkDataFrame(GenericDataFrame):
     def get_spark_df(self):
         return self.df
 
-    def get_memory_usage(self, deep):
+    def get_memory_usage(self, deep: bool = False):
         sample = self.n_rows ** (1 / 3)
         percentage = sample / self.n_rows
         inverse_percentage = 1 / percentage
@@ -586,3 +590,25 @@ def get_implemented_engines():
 
     """
     return [PandasDataFrame, SparkDataFrame]
+
+
+def get_appropriate_wrapper(df):
+    """
+    Wrap data type with proper engine from get_implemented_engines
+
+    Raises NotImplementedError if no valid engine found
+
+    Args:
+        df: the dataframe to be profiled - currently Spark and Pandas dataframes are supported
+
+    Returns: An implementation of the GenericDataFrame object, currently either SparkDataFrame or PandasDataFrame
+
+    """
+    implemented_engines = get_implemented_engines()
+    for engine in implemented_engines:
+        if engine.check_if_corresponding_engine(df):
+            return engine
+
+    raise NotImplementedError(
+        f"""Datatype is currently not supported. Support data types are {implemented_engines}"""
+    )

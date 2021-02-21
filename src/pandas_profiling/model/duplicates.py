@@ -13,7 +13,7 @@ from pandas_profiling.model.dataframe_wrappers import (
 
 @singledispatch
 def get_duplicates(df: GenericDataFrame, supported_columns) -> Optional[pd.DataFrame]:
-    raise NotImplementedError("This method is not implemented ")
+    raise NotImplementedError("This method is not implemented.")
 
 
 @get_duplicates.register(PandasDataFrame)
@@ -34,8 +34,6 @@ def _get_duplicates_pandas(
     if n_head > 0 and supported_columns:
         return df.groupby_get_n_largest_dups(supported_columns, n_head)
 
-    return None
-
 
 @get_duplicates.register(SparkDataFrame)
 def _get_duplicates_spark(
@@ -54,5 +52,3 @@ def _get_duplicates_spark(
 
     if n_head > 0 and supported_columns:
         return df.groupby_get_n_largest_dups(supported_columns, n_head)
-
-    return None
