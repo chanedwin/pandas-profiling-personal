@@ -9,8 +9,8 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from pandas_profiling.config import config
-from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.expectations_report import ExpectationsReport
+from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.model.describe import describe as describe_df
 from pandas_profiling.model.messages import MessageType
 from pandas_profiling.model.sample import Sample
