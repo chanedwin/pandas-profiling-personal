@@ -3,14 +3,17 @@ import warnings
 from pathlib import Path
 from typing import Any, Optional, Union
 
+import attr
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
 from pandas_profiling.config import config
 from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
+from pandas_profiling.expectations_report import ExpectationsReport
 from pandas_profiling.model.describe import describe as describe_df
 from pandas_profiling.model.messages import MessageType
+from pandas_profiling.model.sample import Sample
 from pandas_profiling.model.summarizer import PandasProfilingSummarizer, format_summary
 from pandas_profiling.model.typeset import ProfilingTypeSet
 from pandas_profiling.report import get_report_structure
@@ -22,7 +25,7 @@ from pandas_profiling.utils.dataframe import get_appropriate_wrapper, hash_dataf
 from pandas_profiling.utils.paths import get_config
 
 
-class ProfileReport(SerializeReport):
+class ProfileReport(SerializeReport, ExpectationsReport):
     """Generate a profile report from a Dataset stored as a pandas `DataFrame`.
 
     Used has is it will output its content as an HTML report in a Jupyter notebook.
@@ -362,9 +365,13 @@ class ProfileReport(SerializeReport):
                 elif isinstance(o, set):
                     return {encode_it(v) for v in o}
                 elif isinstance(o, (pd.DataFrame, pd.Series)):
-                    return o.to_json()
+                    return encode_it(o.to_dict(orient="records"))
                 elif isinstance(o, np.ndarray):
                     return encode_it(o.tolist())
+                elif isinstance(o, Sample):
+                    return encode_it(attr.asdict(o))
+                elif isinstance(o, np.generic):
+                    return o.item()
                 else:
                     return str(o)
 
