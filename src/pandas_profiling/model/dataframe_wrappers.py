@@ -578,6 +578,38 @@ class SparkDataFrame(GenericDataFrame):
     def __getitem__(self, key):
         return self.df.select(key)
 
+    def value_counts(self):
+        """
+
+        Args:
+            n: by default, get only 1000
+
+        Returns:
+
+        """
+
+        from pyspark.sql.functions import array, map_keys, map_values
+        from pyspark.sql.types import MapType
+
+        value_count_map = {}
+        for name in self.columns:
+            series = self.df.select(name)
+            # if series type is dict, handle that separately
+            if isinstance(series.schema[0].dataType, MapType):
+                new_df = self.dropna.groupby(
+                    map_keys(series[name]).alias("key"),
+                    map_values(series[name]).alias("value"),
+                ).count()
+                value_counts = (
+                    new_df.withColumn(name, array(new_df["key"], new_df["value"]))
+                    .select(name, "count")
+                    .orderBy("count", ascending=False)
+                )
+            else:
+                value_counts = self.dropna.groupBy(name).count()
+            value_count_map["name"] = value_counts
+        return value_count_map
+
 
 def get_implemented_engines():
     """

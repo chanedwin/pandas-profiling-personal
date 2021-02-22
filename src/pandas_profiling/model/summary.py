@@ -80,30 +80,6 @@ def _describe_1d_pandas(series: pd.Series, summarizer: BaseSummarizer, typeset) 
     return summarizer.summarize(series, dtype=vtype)
 
 
-@describe_1d.register(SparkSeries)
-def _describe_1d_spark(
-    series: SparkSeries, summarizer: BaseSummarizer, typeset
-) -> dict:
-    """Describe a series (infer the variable type, then calculate type-specific values).
-
-    Args:
-        series: The Series to describe.
-
-    Returns:
-        A Series containing calculated series description values.
-    """
-    vtype: Any = SparkUnsupported
-    if series in SparkNumeric:
-        vtype = SparkNumeric
-    elif series in SparkCategorical:
-        vtype = SparkCategorical
-
-    series.persist()
-    results = summarizer.summarize(series, dtype=vtype)
-    series.unpersist()
-    return results
-
-
 def sort_column_names(dct: Mapping, sort: str):
     sort = sort.lower()
     if sort.startswith("asc"):
@@ -115,7 +91,15 @@ def sort_column_names(dct: Mapping, sort: str):
     return dct
 
 
+@singledispatch
 def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
+    raise NotImplementedError(
+        f"get_table_stats is not implemented for datatype {type(df)}"
+    )
+
+
+@get_series_descriptions.register(PandasDataFrame)
+def _get_series_descriptions_pandas(df: PandasDataFrame, summarizer, typeset, pbar):
     def multiprocess_1d(args) -> Tuple[str, dict]:
         """Wrapper to process series in parallel.
 
@@ -172,6 +156,67 @@ def get_series_descriptions(df: GenericDataFrame, summarizer, typeset, pbar):
     return series_description
 
 
+@get_series_descriptions.register(SparkDataFrame)
+def _get_series_descriptions_spark(df: PandasDataFrame, summarizer, typeset, pbar):
+    def multiprocess_1d(args) -> Tuple[str, dict]:
+        """Wrapper to process series in batches for spark to reduce computation type
+
+        Args:
+            column: The name of the column.
+            series: The series values.
+
+        Returns:
+            A tuple with column and the series description.
+        """
+        column, series = args
+        return column, describe_1d(series, summarizer, typeset)
+
+    # check for unwrapped dataframes and warn
+    if not isinstance(df, GenericDataFrame):
+        warnings.warn(UNWRAPPED_DATAFRAME_WARNING)
+        df_wrapper = get_appropriate_wrapper(df)
+        df = df_wrapper(df)
+
+    sort = config["sort"].get(str)
+
+    series_description = {}
+
+    args = [(name, series) for name, series in df.iteritems()]
+
+    numeric_cols = []
+    categorical_cols = []
+    unsupported_cols = []
+    for name, series in args:
+        if series in SparkNumeric:
+            numeric_cols.append(name)
+        elif series in SparkCategorical:
+            categorical_cols.append(name)
+        else:
+            unsupported_cols.append(name)
+
+    summarizer.summarize(
+        df.get_spark_df().select(SparkDataFrame(numeric_cols)), vtype=SparkNumeric
+    )
+    summarizer.summarize(
+        df.get_spark_df().select(SparkDataFrame(categorical_cols)), vtype=SparkNumeric
+    )
+    summarizer.summarize(
+        df.get_spark_df().select(SparkDataFrame(unsupported_cols)),
+        vtype=SparkUnsupported,
+    )
+
+    # pbar.set_postfix_str(f"Describe variable:{column}")
+    # pbar.update()
+
+    # Restore the original order
+    series_description = {k: series_description[k] for k in df.columns}
+
+    # Mapping from column name to variable type
+    series_description = sort_column_names(series_description, sort)
+
+    return series_description
+
+
 @singledispatch
 def get_table_stats(df: GenericDataFrame, variable_stats: dict) -> dict:
     """General statistics for the DataFrame.
@@ -183,9 +228,8 @@ def get_table_stats(df: GenericDataFrame, variable_stats: dict) -> dict:
     Returns:
         A dictionary that contains the table statistics.
     """
-    data_type = type(df)
     raise NotImplementedError(
-        f"get_table_stats is not implemented for datatype {data_type}"
+        f"get_table_stats is not implemented for datatype {type(df)}"
     )
 
 

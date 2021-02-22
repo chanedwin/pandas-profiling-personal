@@ -8,6 +8,7 @@ from pandas.core.arrays.integer import _IntegerDtype
 from visions.utils import func_nullable_series_contains
 
 from pandas_profiling.config import config
+from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.model.summary_helpers import (
     chi_square,
@@ -461,8 +462,8 @@ def describe_boolean_1d(series: pd.Series, summary: dict) -> Tuple[pd.Series, di
 
 
 def describe_counts_spark(
-    series: SparkSeries, summary: dict
-) -> Tuple[SparkSeries, dict]:
+    df: SparkDataFrame, summary: dict
+) -> Tuple[SparkDataFrame, dict]:
     """Counts the values in a series (with and without NaN, distinct).
 
     Args:
@@ -471,7 +472,8 @@ def describe_counts_spark(
     Returns:
         A dictionary with the count values (with and without NaN, distinct).
     """
-    spark_value_counts = series.value_counts()
+    # this can't be batched nicely because groupbys cannot all exist in the same dataframe
+    spark_value_counts = df.value_counts()
 
     # max number of rows to visualise on histogram, most common values taken
     to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
@@ -483,19 +485,19 @@ def describe_counts_spark(
 
     limited_results = (
         limited_results.sort_values("count", ascending=False)
-        .set_index(series.name, drop=True)
+        .set_index(df.name, drop=True)
         .squeeze(axis="columns")
     )
 
     summary["value_counts_without_nan"] = limited_results
     summary["value_counts_without_nan_spark"] = spark_value_counts
-    summary["n_missing"] = series.count_na()
+    summary["n_missing"] = df.count_na()
 
-    return series, summary
+    return df, summary
 
 
 def describe_supported_spark(
-    series: SparkSeries, series_description: dict
+    df: SparkDataFrame, series_description: dict
 ) -> Tuple[SparkSeries, dict]:
     """Describe a supported series.
     Args:
@@ -508,8 +510,8 @@ def describe_supported_spark(
     # number of non-NaN observations in the Series
     count = series_description["count"]
 
-    distinct_count = series.distinct()
-    unique_count = series.unique()
+    distinct_count = df.distinct()
+    unique_count = df.unique()
 
     stats = {
         "n_distinct": distinct_count,
@@ -520,12 +522,12 @@ def describe_supported_spark(
     }
     stats.update(series_description)
 
-    return series, stats
+    return df, stats
 
 
 def describe_generic_spark(
-    series: SparkSeries, summary: dict
-) -> Tuple[SparkSeries, dict]:
+    df: SparkDataFrame, summary: dict
+) -> Tuple[SparkDataFrame, dict]:
     """Describe generic series.
     Args:
         series: The Series to describe.
@@ -549,7 +551,9 @@ def describe_generic_spark(
     return series, summary
 
 
-def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries, dict]:
+def describe_numeric_spark_1d(
+    df: SparkDataFrame, summary
+) -> Tuple[SparkDataFrame, dict]:
     """Describe a boolean series.
 
     Args:
@@ -635,8 +639,8 @@ def describe_numeric_spark_1d(series: SparkSeries, summary) -> Tuple[SparkSeries
 
 
 def describe_categorical_spark_1d(
-    series: SparkSeries, summary: dict
-) -> Tuple[SparkSeries, dict]:
+    df: SparkDataFrame, summary: dict
+) -> Tuple[SparkDataFrame, dict]:
     """Describe a categorical series.
 
     Args:
@@ -702,8 +706,8 @@ def describe_categorical_spark_1d(
 
 
 def describe_boolean_spark_1d(
-    series: SparkSeries, summary: dict
-) -> Tuple[SparkSeries, dict]:
+    df: SparkDataFrame, summary: dict
+) -> Tuple[SparkDataFrame, dict]:
     """Describe a boolean series.
 
     Args:
