@@ -185,7 +185,7 @@ def _get_series_descriptions_spark(df: PandasDataFrame, summarizer, typeset, pba
         df.get_spark_df().select(SparkDataFrame(numeric_cols)), vtype=SparkNumeric
     )
     summarizer.summarize(
-        df.get_spark_df().select(SparkDataFrame(categorical_cols)), vtype=SparkNumeric
+        df.get_spark_df().select(SparkDataFrame(categorical_cols)), vtype=SparkCategorical
     )
     summarizer.summarize(
         df.get_spark_df().select(SparkDataFrame(unsupported_cols)),
