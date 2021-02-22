@@ -158,19 +158,6 @@ def _get_series_descriptions_pandas(df: PandasDataFrame, summarizer, typeset, pb
 
 @get_series_descriptions.register(SparkDataFrame)
 def _get_series_descriptions_spark(df: PandasDataFrame, summarizer, typeset, pbar):
-    def multiprocess_1d(args) -> Tuple[str, dict]:
-        """Wrapper to process series in batches for spark to reduce computation type
-
-        Args:
-            column: The name of the column.
-            series: The series values.
-
-        Returns:
-            A tuple with column and the series description.
-        """
-        column, series = args
-        return column, describe_1d(series, summarizer, typeset)
-
     # check for unwrapped dataframes and warn
     if not isinstance(df, GenericDataFrame):
         warnings.warn(UNWRAPPED_DATAFRAME_WARNING)
