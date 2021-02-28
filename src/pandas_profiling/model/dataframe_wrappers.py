@@ -444,12 +444,16 @@ class SparkDataFrame(GenericDataFrame):
         return self.df
 
     lru_cache()
-
     def get_memory_usage(self, deep: bool = False):
         # TODO : put sample as a config
         sample = 1000
-        percentage = sample / self.n_rows
-        return self.df.sample(fraction=percentage).toPandas().memory_usage(deep=deep)
+        if self.n_rows < sample:
+            return self.df.toPandas().memory_usage(deep=deep)
+        else:
+            percentage = sample / self.n_rows
+            return (
+                self.df.sample(fraction=percentage).toPandas().memory_usage(deep=deep)
+            )
 
     def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
         import pyspark.sql.functions as F

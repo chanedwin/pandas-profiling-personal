@@ -165,11 +165,10 @@ def numeric_stats_numpy(present_values, series, series_description):
     }
 
 
-def numeric_stats_spark(df: SparkDataFrame):
+def numeric_stats_spark(df: SparkDataFrame,summary ):
     import pyspark.sql.functions as F
 
     column_names = df.columns
-    internal_df = df.get_spark_df()
     from pyspark.sql import SparkSession
 
     spark = SparkSession.builder.getOrCreate()
@@ -178,8 +177,7 @@ def numeric_stats_spark(df: SparkDataFrame):
     final_dataframe = spark.createDataFrame(row, ["join_col"])
     for column in column_names:
         final_dataframe = final_dataframe.join(
-            internal_df.select(column)
-            .na.drop()
+            summary[column]["series"].dropna
             .select(
                 F.mean(column).alias(f"{column}_mean"),
                 F.stddev(column).alias(f"{column}_std"),
@@ -597,7 +595,7 @@ def describe_numeric_spark_1d(
 
     import pyspark.sql.functions as F
 
-    numeric_stats = numeric_stats_spark(df)
+    numeric_stats = numeric_stats_spark(df, summary)
 
     for column in df.columns:
         series_summary = summary[column]
