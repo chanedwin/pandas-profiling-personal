@@ -165,38 +165,54 @@ def numeric_stats_numpy(present_values, series, series_description):
     }
 
 
-def numeric_stats_spark(series: SparkSeries):
+def numeric_stats_spark(df: SparkDataFrame):
     import pyspark.sql.functions as F
 
-    numeric_results_df = (
-        series.dropna.select(
-            F.mean(series.name).alias("mean"),
-            F.stddev(series.name).alias("std"),
-            F.variance(series.name).alias("variance"),
-            F.min(series.name).alias("min"),
-            F.max(series.name).alias("max"),
-            F.kurtosis(series.name).alias("kurtosis"),
-            F.skewness(series.name).alias("skewness"),
-            F.sum(series.name).alias("sum"),
+    column_names = df.columns
+    internal_df = df.get_spark_df()
+    from pyspark.sql import SparkSession
+
+    spark = SparkSession.builder.getOrCreate()
+
+    row = [(1,)]
+    final_dataframe = spark.createDataFrame(row, ["join_col"])
+    for column in column_names:
+        final_dataframe = final_dataframe.join(
+            internal_df.select(column)
+            .na.drop()
+            .select(
+                F.mean(column).alias(f"{column}_mean"),
+                F.stddev(column).alias(f"{column}_std"),
+                F.variance(column).alias(f"{column}_variance"),
+                F.min(column).alias(f"{column}_min"),
+                F.max(column).alias(f"{column}_max"),
+                F.kurtosis(column).alias(f"{column}_kurtosis"),
+                F.skewness(column).alias(f"{column}_skewness"),
+                F.sum(column).alias(f"{column}_sum"),
+                F.lit(1).alias("join_col"),
+            ),
+            on="join_col",
         )
-        .toPandas()
-        .T
-    )
 
-    results = {
-        "mean": numeric_results_df.loc["mean"][0],
-        "std": numeric_results_df.loc["std"][0],
-        "variance": numeric_results_df.loc["variance"][0],
-        "min": numeric_results_df.loc["min"][0],
-        "max": numeric_results_df.loc["max"][0],
-        # Unbiased kurtosis obtained using Fisher's definition (kurtosis of normal == 0.0). Normalized by N-1.
-        "kurtosis": numeric_results_df.loc["kurtosis"][0],
-        # Unbiased skew normalized by N-1
-        "skewness": numeric_results_df.loc["skewness"][0],
-        "sum": numeric_results_df.loc["sum"][0],
-    }
+    pandas_df = final_dataframe.toPandas().T
 
-    return results
+    full_results = {}
+    for column in column_names:
+        results = {
+            "mean": pandas_df.loc[f"{column}_mean"][0],
+            "std": pandas_df.loc[f"{column}_std"][0],
+            "variance": pandas_df.loc[f"{column}_variance"][0],
+            "min": pandas_df.loc[f"{column}_min"][0],
+            "max": pandas_df.loc[f"{column}_max"][0],
+            # Unbiased kurtosis obtained using Fisher's definition (kurtosis of normal == 0.0). Normalized by N-1.
+            "kurtosis": pandas_df.loc[f"{column}_kurtosis"][0],
+            # Unbiased skew normalized by N-1
+            "skewness": pandas_df.loc[f"{column}_skewness"][0],
+            "sum": pandas_df.loc[f"{column}_sum"][0],
+        }
+        full_results[column] = results
+
+    return full_results
 
 
 @series_hashable
@@ -472,33 +488,40 @@ def describe_counts_spark(
     Returns:
         A dictionary with the count values (with and without NaN, distinct).
     """
-    # this can't be batched nicely because groupbys cannot all exist in the same dataframe
-    spark_value_counts = df.value_counts()
+    # we cannot batch this process sadly
+    for column in df.columns:
+        series = SparkSeries(df.get_spark_df().select(column), persist=df.persist_bool)
+        spark_value_counts = series.value_counts()
 
-    # max number of rows to visualise on histogram, most common values taken
-    to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
-    limited_results = (
-        spark_value_counts.orderBy("count", ascending=False)
-        .limit(to_pandas_limit)
-        .toPandas()
-    )
+        # max number of rows to visualise on histogram, most common values taken
+        to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
+        limited_results = (
+            spark_value_counts.orderBy("count", ascending=False)
+            .limit(to_pandas_limit)
+            .toPandas()
+        )
 
-    limited_results = (
-        limited_results.sort_values("count", ascending=False)
-        .set_index(df.name, drop=True)
-        .squeeze(axis="columns")
-    )
-
-    summary["value_counts_without_nan"] = limited_results
-    summary["value_counts_without_nan_spark"] = spark_value_counts
-    summary["n_missing"] = df.count_na()
+        limited_results = (
+            limited_results.sort_values("count", ascending=False)
+            .set_index(series.name, drop=True)
+            .squeeze(axis="columns")
+        )
+        series_summary = summary[column]
+        series_summary.update(
+            {
+                "series": series,
+                "value_counts_without_nan": limited_results,
+                "value_counts_without_nan_spark": spark_value_counts,
+                "n_missing": series.count_na(),
+            }
+        )
 
     return df, summary
 
 
 def describe_supported_spark(
     df: SparkDataFrame, series_description: dict
-) -> Tuple[SparkSeries, dict]:
+) -> Tuple[SparkDataFrame, dict]:
     """Describe a supported series.
     Args:
         series: The Series to describe.
@@ -508,21 +531,23 @@ def describe_supported_spark(
     """
 
     # number of non-NaN observations in the Series
-    count = series_description["count"]
+    for column in df.columns:
+        series_summary = series_description[column]
+        count = series_summary["count"]
+        series = series_summary["series"]
+        distinct_count = series.distinct
+        unique_count = series.unique
 
-    distinct_count = df.distinct()
-    unique_count = df.unique()
+        stats = {
+            "n_distinct": distinct_count,
+            "p_distinct": distinct_count / count,
+            "is_unique": unique_count == count,
+            "n_unique": unique_count,
+            "p_unique": unique_count / count,
+        }
+        series_summary.update(stats)
 
-    stats = {
-        "n_distinct": distinct_count,
-        "p_distinct": distinct_count / count,
-        "is_unique": unique_count == count,
-        "n_unique": unique_count,
-        "p_unique": unique_count / count,
-    }
-    stats.update(series_description)
-
-    return df, stats
+    return df, series_description
 
 
 def describe_generic_spark(
@@ -537,18 +562,22 @@ def describe_generic_spark(
     """
 
     # number of observations in the Series
-    length = len(series)
+    length = len(df)
 
-    summary.update(
-        {
-            "n": length,
-            "p_missing": summary["n_missing"] / length,
-            "count": length - summary["n_missing"],
-            "memory_size": series.memory_usage(deep=config["memory_deep"].get(bool)),
-        }
-    )
+    memory_usage = df.get_memory_usage()
 
-    return series, summary
+    for column in df.columns:
+        series_summary = summary[column]
+        series_summary.update(
+            {
+                "n": length,
+                "p_missing": series_summary["n_missing"] / length,
+                "count": length - series_summary["n_missing"],
+                "memory_size": memory_usage[column],
+            }
+        )
+
+    return df, summary
 
 
 def describe_numeric_spark_1d(
@@ -563,79 +592,86 @@ def describe_numeric_spark_1d(
     Returns:
         A dict containing calculated series description values.
     """
+
     # Config
 
     import pyspark.sql.functions as F
 
-    quantiles = config["vars"]["num"]["quantiles"].get(list)
+    numeric_stats = numeric_stats_spark(df)
 
-    value_counts = summary["value_counts_without_nan"]
+    for column in df.columns:
+        series_summary = summary[column]
+        series_summary.update(numeric_stats[column])
 
-    infinity_values = [np.inf, -np.inf]
-    summary["n_infinite"] = series.dropna.where(
-        series.dropna[series.name].isin(infinity_values)
-    ).count()
+        value_counts = series_summary["value_counts_without_nan"]
+        series = series_summary["series"]
+        infinity_values = [np.inf, -np.inf]
+        series_summary["n_infinite"] = series.dropna.where(
+            series.dropna[series.name].isin(infinity_values)
+        ).count()
 
-    summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
+        series_summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
 
-    stats = summary
+        quantiles = config["vars"]["num"]["quantiles"].get(list)
+        quantile_threshold = config["spark"]["quantile_error"].get(float)
 
-    stats.update(numeric_stats_spark(series))
-
-    quantile_threshold = config["spark"]["quantile_error"].get(float)
-
-    # manual MAD computation, refactor possible
-    stats.update(
-        {
-            f"{percentile:.0%}": value
-            for percentile, value in zip(
-                quantiles,
-                series.dropna.stat.approxQuantile(
-                    series.name, quantiles, quantile_threshold
-                ),
-            )
-        }
-    )
-
-    median = stats["50%"]
-
-    mad = series.dropna.select(
-        (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
-    ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
-    stats.update(
-        {
-            "mad": mad,
-        }
-    )
-
-    stats["range"] = stats["max"] - stats["min"]
-
-    stats["iqr"] = stats["75%"] - stats["25%"]
-    stats["cv"] = stats["std"] / stats["mean"] if stats["mean"] else np.NaN
-    stats["p_zeros"] = stats["n_zeros"] / summary["n"]
-    stats["p_infinite"] = summary["n_infinite"] / summary["n"]
-
-    # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
-    # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
-    stats["monotonic_increase"] = False
-    stats["monotonic_decrease"] = False
-
-    stats["monotonic_increase_strict"] = False
-    stats["monotonic_decrease_strict"] = False
-
-    # this function only displays the top N (see config) values for a histogram.
-    # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
-    # display in pandas display
-    # the alternative is to do this in spark natively, but it is not trivial
-    stats.update(
-        histogram_compute(
-            value_counts.index.values,
-            summary["n_distinct"],
-            weights=value_counts.values,
+        series_summary.update(
+            {
+                f"{percentile:.0%}": value
+                for percentile, value in zip(
+                    quantiles,
+                    series.dropna.stat.approxQuantile(
+                        series.name, quantiles, quantile_threshold
+                    ),
+                )
+            }
         )
-    )
 
-    return series, stats
+        median = series_summary["50%"]
+
+        mad = series.dropna.select(
+            (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
+        ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
+        series_summary.update(
+            {
+                "mad": mad,
+            }
+        )
+
+        series_summary["range"] = series_summary["max"] - series_summary["min"]
+
+        series_summary["iqr"] = series_summary["75%"] - series_summary["25%"]
+        series_summary["cv"] = (
+            series_summary["std"] / series_summary["mean"]
+            if series_summary["mean"]
+            else np.NaN
+        )
+        series_summary["p_zeros"] = series_summary["n_zeros"] / series_summary["n"]
+        series_summary["p_infinite"] = (
+            series_summary["n_infinite"] / series_summary["n"]
+        )
+
+        # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
+        # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
+        series_summary["monotonic_increase"] = False
+        series_summary["monotonic_decrease"] = False
+
+        series_summary["monotonic_increase_strict"] = False
+        series_summary["monotonic_decrease_strict"] = False
+
+        # this function only displays the top N (see config) values for a histogram.
+        # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
+        # display in pandas display
+        # the alternative is to do this in spark natively, but it is not trivial
+        series_summary.update(
+            histogram_compute(
+                value_counts.index.values,
+                series_summary["n_distinct"],
+                weights=value_counts.values,
+            )
+        )
+
+    return df, summary
 
 
 def describe_categorical_spark_1d(
@@ -650,59 +686,70 @@ def describe_categorical_spark_1d(
     Returns:
         A dict containing calculated series description values.
     """
-    # Only run if at least 1 non-missing value
-    value_counts = summary["value_counts_without_nan"]
 
-    # this function only displays the top N (see config) values for a histogram.
-    # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
-    # display in pandas display
-    # the alternative is to do this in spark natively, but it is not trivial
-    summary.update(
-        histogram_compute(
-            value_counts, summary["n_distinct"], name="histogram_frequencies"
-        )
-    )
+    for column in df.columns:
+        series_summary = summary[column]
+        series = series_summary["series"]
 
-    redact = config["vars"]["cat"]["redact"].get(float)
-    if not redact:
-        summary.update({"first_rows": series.dropna.limit(5).toPandas()})
+        # Only run if at least 1 non-missing value
+        value_counts = series_summary["value_counts_without_nan"]
 
-    # do not do chi_square for now, too slow
-    # if chi_squared_threshold > 0.0:
-    #    summary["chi_squared"] = chi_square_spark(series)
-
-    check_length = config["vars"]["cat"]["length"].get(bool)
-    if check_length:
-        summary.update(length_summary(series))
-        summary.update(
+        # this function only displays the top N (see config) values for a histogram.
+        # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
+        # display in pandas display
+        # the alternative is to do this in spark natively, but it is not trivial
+        series_summary.update(
             histogram_compute(
-                summary["length"], summary["length"].nunique(), name="histogram_length"
+                value_counts, series_summary["n_distinct"], name="histogram_frequencies"
             )
         )
 
-    check_unicode = config["vars"]["cat"]["characters"].get(bool)
-    if check_unicode:
-        summary.update(unicode_summary(series))
-        summary["n_characters_distinct"] = summary["n_characters"]
-        summary["n_characters"] = summary["character_counts"].values.sum()
+        redact = config["vars"]["cat"]["redact"].get(bool)
+        if not redact:
+            series_summary.update({"first_rows": series.dropna.limit(5).toPandas()})
 
-        try:
-            summary["category_alias_counts"].index = summary[
-                "category_alias_counts"
-            ].index.str.replace("_", " ")
-        except AttributeError:
-            pass
+        # do not do chi_square for now, too slow
+        # if chi_squared_threshold > 0.0:
+        #    summary["chi_squared"] = chi_square_spark(series)
 
-    words = config["vars"]["cat"]["words"]
-    to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
-    if words:
-        limited_series = series.dropna.limit(to_pandas_limit).toPandas()[series.name]
-        limited_series.astype(str)
-        summary.update(word_summary(limited_series))
-    # if coerce_str_to_date:
-    #     summary["date_warning"] = warning_type_date(series)
+        check_length = config["vars"]["cat"]["length"].get(bool)
+        if check_length:
+            series_summary.update(length_summary(series))
+            series_summary.update(
+                histogram_compute(
+                    series_summary["length"],
+                    series_summary["length"].nunique(),
+                    name="histogram_length",
+                )
+            )
 
-    return series, summary
+        check_unicode = config["vars"]["cat"]["characters"].get(bool)
+        if check_unicode:
+            series_summary.update(unicode_summary(series))
+            series_summary["n_characters_distinct"] = series_summary["n_characters"]
+            series_summary["n_characters"] = series_summary[
+                "character_counts"
+            ].values.sum()
+
+            try:
+                series_summary["category_alias_counts"].index = series_summary[
+                    "category_alias_counts"
+                ].index.str.replace("_", " ")
+            except AttributeError:
+                pass
+
+        words = config["vars"]["cat"]["words"]
+        to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
+        if words:
+            limited_series = series.dropna.limit(to_pandas_limit).toPandas()[
+                series.name
+            ]
+            limited_series.astype(str)
+            series_summary.update(word_summary(limited_series))
+        # if coerce_str_to_date:
+        #     summary["date_warning"] = warning_type_date(series)
+
+    return df, summary
 
 
 def describe_boolean_spark_1d(
@@ -718,7 +765,12 @@ def describe_boolean_spark_1d(
         A dict containing calculated series description values.
     """
 
-    value_counts = summary["value_counts_without_nan"]
-    summary.update({"top": value_counts.index[0], "freq": value_counts.iloc[0]})
+    for column in df.columns:
+        series_summary = summary[column]
 
-    return series, summary
+        value_counts = series_summary["value_counts_without_nan"]
+        series_summary.update(
+            {"top": value_counts.index[0], "freq": value_counts.iloc[0]}
+        )
+
+    return df, summary

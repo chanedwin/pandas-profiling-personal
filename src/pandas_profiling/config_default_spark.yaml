@@ -45,7 +45,7 @@ vars:
 # Set to zero to disable
         chi_squared_threshold: 0.999
         coerce_str_to_date: False
-        redact: False
+        redact: True
     bool:
         n_obs: 3
 # string to boolean mappings pairs (true, false)
@@ -102,8 +102,8 @@ spark:
     persist: True
     quantile_error: 0.05
     scatter: False
-    to_pandas_limit: 250
-    length_values_sample: 10000
+    to_pandas_limit: 200
+    length_values_sample: 2000
 
 # Bivariate / Pairwise relations
 interactions:

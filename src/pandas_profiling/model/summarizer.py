@@ -56,14 +56,21 @@ class BaseSummarizer:
                 self.summary_map[from_type] + self.summary_map[to_type]
             )
 
-    def summarize(self, series, dtype: Type[VisionsBaseType]) -> dict:
+    def summarize(self, data, engine, dtype: Type[VisionsBaseType]) -> dict:
         """
 
         Returns:
             object:
         """
         summarizer_func = compose(self.summary_map.get(dtype, []))
-        _, summary = summarizer_func(series, {"type": dtype})
+        if engine == "pandas":
+            _, summary = summarizer_func(data, {"type": dtype})
+        elif engine == "spark":
+            _, summary = summarizer_func(
+                data, {column: {"type": dtype} for column in data.columns}
+            )
+        else:
+            raise Exception(f"{engine} is not recognised by summarizer")
         return summary
 
 

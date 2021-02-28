@@ -5,7 +5,7 @@ import multiprocessing.pool
 import warnings
 from collections import Counter
 from functools import singledispatch
-from typing import Any, Callable, Mapping, Tuple
+from typing import Callable, Mapping, Tuple
 
 import numpy as np
 import pandas as pd
@@ -23,9 +23,9 @@ from pandas_profiling.model.messages import (
     check_table_messages,
     check_variable_messages,
 )
-from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.model.summarizer import BaseSummarizer
 from pandas_profiling.model.typeset import (
+    SparkBoolean,
     SparkCategorical,
     SparkNumeric,
     SparkUnsupported,
@@ -77,7 +77,8 @@ def _describe_1d_pandas(series: pd.Series, summarizer: BaseSummarizer, typeset) 
         # Detect variable types from pandas dataframe (df.dtypes). [new dtypes, changed using `astype` function are now considered]
         vtype = typeset.detect_type(series)
 
-    return summarizer.summarize(series, dtype=vtype)
+    # engine must be pandas here due to singledispatch logic
+    return summarizer.summarize(series, engine="pandas", dtype=vtype)
 
 
 def sort_column_names(dct: Mapping, sort: str):
@@ -166,39 +167,71 @@ def _get_series_descriptions_spark(df: PandasDataFrame, summarizer, typeset, pba
 
     sort = config["sort"].get(str)
 
-    series_description = {}
+    schema_column_pairs = [
+        {"name": i[0], "type": str(i[1].dataType)} for i in zip(df.columns, df.schema)
+    ]
 
-    args = [(name, series) for name, series in df.iteritems()]
+    numeric_cols = {
+        pair["name"]
+        for pair in filter(
+            lambda pair: pair["type"] in SparkNumeric, schema_column_pairs
+        )
+    }
+    categorical_cols = {
+        pair["name"]
+        for pair in filter(
+            lambda pair: pair["type"] in SparkCategorical, schema_column_pairs
+        )
+    }
+    boolean_cols = {
+        pair["name"]
+        for pair in filter(
+            lambda pair: pair["type"] in SparkBoolean, schema_column_pairs
+        )
+    }
+    supported_cols = numeric_cols.union(categorical_cols).union(boolean_cols)
+    unsupported_cols = set(df.columns)
+    unsupported_cols.difference_update(supported_cols)
 
-    numeric_cols = []
-    categorical_cols = []
-    unsupported_cols = []
-    for name, series in args:
-        if series in SparkNumeric:
-            numeric_cols.append(name)
-        elif series in SparkCategorical:
-            categorical_cols.append(name)
-        else:
-            unsupported_cols.append(name)
-
-    summarizer.summarize(
-        df.get_spark_df().select(SparkDataFrame(numeric_cols)), vtype=SparkNumeric
+    pbar.set_postfix_str(f"Describe variable type: Numeric")
+    series_description = summarizer.summarize(
+        SparkDataFrame(df.get_spark_df().select(list(numeric_cols))),
+        engine=df.engine,
+        dtype=SparkNumeric,
     )
-    summarizer.summarize(
-        df.get_spark_df().select(SparkDataFrame(categorical_cols)), vtype=SparkCategorical
-    )
-    summarizer.summarize(
-        df.get_spark_df().select(SparkDataFrame(unsupported_cols)),
-        vtype=SparkUnsupported,
-    )
+    pbar.update(n=len(numeric_cols))
 
-    # pbar.set_postfix_str(f"Describe variable:{column}")
-    # pbar.update()
+    pbar.set_postfix_str(f"Describe variable type: Categorical")
+    series_description.update(
+        summarizer.summarize(
+            SparkDataFrame(df.get_spark_df().select(list(categorical_cols))),
+            engine=df.engine,
+            dtype=SparkCategorical,
+        )
+    )
+    pbar.update(n=len(categorical_cols))
+
+    pbar.set_postfix_str(f"Describe variable type: Boolean")
+    series_description.update(
+        summarizer.summarize(
+            SparkDataFrame(df.get_spark_df().select(list(boolean_cols))),
+            engine=df.engine,
+            dtype=SparkBoolean,
+        )
+    )
+    pbar.update(n=len(boolean_cols))
+
+    pbar.set_postfix_str(f"Describe variable type: Others")
+    series_description.update(
+        summarizer.summarize(
+            SparkDataFrame(df.get_spark_df().select(list(unsupported_cols))),
+            engine=df.engine,
+            dtype=SparkUnsupported,
+        )
+    )
+    pbar.update(n=len(unsupported_cols))
 
     # Restore the original order
-    series_description = {k: series_description[k] for k in df.columns}
-
-    # Mapping from column name to variable type
     series_description = sort_column_names(series_description, sort)
 
     return series_description
@@ -274,7 +307,7 @@ def _get_table_stats_pandas(df: PandasDataFrame, variable_stats: dict) -> dict:
 def _get_table_stats_spark(df: SparkDataFrame, variable_stats: dict) -> dict:
     n = len(df)
 
-    memory_size = df.get_memory_usage(deep=config["memory_deep"].get(bool))
+    memory_size = 1000 * df.get_memory_usage(deep=config["memory_deep"].get(bool)).sum()
     record_size = float(memory_size) / n
 
     table_stats = {

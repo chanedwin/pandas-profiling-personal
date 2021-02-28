@@ -74,6 +74,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
         self._json = None
         self._typeset = None
         self._summarizer = None
+        self._engine = None
 
         if df is not None:
             # get appropriate backend
@@ -84,6 +85,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
             self.df = df_wrapper(processed_df)
             # set appropriate default config
             config.set_default_config(df_wrapper.engine)
+            self._engine = df_wrapper.engine
 
         if config_file:
             config.set_file(config_file)

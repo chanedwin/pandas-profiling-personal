@@ -203,14 +203,14 @@ class SparkNumeric(visions.VisionsBaseType):
         return [IdentityRelation(cls, SparkUnsupported)]
 
     @classmethod
-    def contains_op(cls, series: SparkSeries, state: dict) -> bool:
-        return (
-            str(series.type) == "DoubleType"
-            or str(series.type) == "LongType"
-            or str(series.type) == "IntegerType"
-            or str(series.type) == "ShortType"
-            or str(series.type) == "FloatType"
-        )
+    def contains_op(cls, spark_type: str, state: dict) -> bool:
+        return spark_type in [
+            "DoubleType",
+            "LongType",
+            "IntegerType",
+            "ShortType",
+            "FloatType",
+        ]
 
 
 class SparkCategorical(visions.VisionsBaseType):
@@ -219,8 +219,8 @@ class SparkCategorical(visions.VisionsBaseType):
         return [IdentityRelation(cls, SparkUnsupported)]
 
     @classmethod
-    def contains_op(cls, series: SparkSeries, state: dict) -> bool:
-        return str(series.type) == "StringType"
+    def contains_op(cls, spark_type: str, state: dict) -> bool:
+        return spark_type == "StringType"
 
 
 class SparkBoolean(visions.VisionsBaseType):
@@ -229,8 +229,8 @@ class SparkBoolean(visions.VisionsBaseType):
         return [IdentityRelation(cls, SparkUnsupported)]
 
     @classmethod
-    def contains_op(cls, series: SparkSeries, state: dict) -> bool:
-        return str(series.type) == "BooleanType"
+    def contains_op(cls, spark_type: str, state: dict) -> bool:
+        return spark_type == "BooleanType"
 
 
 class ProfilingTypeSet(visions.VisionsTypeset):

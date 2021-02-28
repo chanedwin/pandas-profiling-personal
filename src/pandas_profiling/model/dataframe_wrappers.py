@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -101,17 +102,6 @@ class GenericDataFrame(ABC):
         """
         pass
 
-    @property
-    @abstractmethod
-    def n_rows(self) -> int:
-        """
-        Get the number of rows in a dataframe as an int
-
-        Returns: number of rows in column
-
-        """
-        pass
-
     @abstractmethod
     def get_duplicate_rows_count(self, subset: List[str]) -> int:
         """
@@ -119,16 +109,6 @@ class GenericDataFrame(ABC):
 
         Args:
             subset: subset of rows to consider
-
-        Returns:
-
-        """
-        pass
-
-    @abstractmethod
-    def iteritems(self) -> List[Tuple[str, Union[pd.Series, SparkSeries]]]:
-        """
-        returns name and generic series type
 
         Returns:
 
@@ -222,6 +202,7 @@ class PandasDataFrame(GenericDataFrame):
         super().__init__()
         # self.df holds the underlying data object
         self.df = df
+        self.n_rows = len(self.df)
 
     @staticmethod
     def check_if_corresponding_engine(obj) -> bool:
@@ -271,10 +252,6 @@ class PandasDataFrame(GenericDataFrame):
     @property
     def empty(self) -> bool:
         return self.df.empty
-
-    @property
-    def n_rows(self) -> int:
-        return len(self.df)
 
     def get_duplicate_rows_count(self, subset) -> int:
         """
@@ -370,20 +347,22 @@ class SparkDataFrame(GenericDataFrame):
         super().__init__()
         self.df = df
         self.persist_bool = persist
-        df_without_na = self.df.na.drop()
-        df_without_na.persist()
-        self.dropna = df_without_na
-        from pyspark.ml.feature import VectorAssembler
+        self.dropna = self.df.na.drop()
+        self.dropna.persist()
 
         # get all columns in df that are numeric as pearson works only on numeric columns
         numeric_columns = self.get_numeric_columns()
 
         if len(numeric_columns) > 1:
+            from pyspark.ml.feature import VectorAssembler
+
             # Can't compute correlations with 1 or less columns
             # assemble all numeric columns into a vector
             assembler = VectorAssembler(inputCols=numeric_columns, outputCol="features")
             output_df = assembler.transform(self.dropna)
             self.as_vector = output_df
+
+        self.n_rows = self.df.count()
 
     @staticmethod
     def check_if_corresponding_engine(obj) -> bool:
@@ -434,10 +413,6 @@ class SparkDataFrame(GenericDataFrame):
     def empty(self) -> bool:
         return self.n_rows == 0
 
-    @property
-    def n_rows(self) -> int:
-        return self.df.count()
-
     def get_columns(self) -> List[str]:
         return self.df.columns
 
@@ -465,32 +440,16 @@ class SparkDataFrame(GenericDataFrame):
     def __len__(self) -> int:
         return self.n_rows
 
-    def iteritems(self) -> List[Tuple[str, SparkSeries]]:
-        """
-        returns name and generic series type
-
-        Returns: list of (series name,series object) tuples
-        """
-        column_list = self.columns
-        return [
-            (column, SparkSeries(self.df.select(column), persist=self.persist_bool))
-            for column in column_list
-        ]
-
     def get_spark_df(self):
         return self.df
 
+    lru_cache()
+
     def get_memory_usage(self, deep: bool = False):
-        sample = self.n_rows ** (1 / 3)
+        # TODO : put sample as a config
+        sample = 1000
         percentage = sample / self.n_rows
-        inverse_percentage = 1 / percentage
-        return (
-            inverse_percentage
-            * self.df.sample(fraction=percentage)
-            .toPandas()
-            .memory_usage(deep=deep)
-            .sum()
-        )
+        return self.df.sample(fraction=percentage).toPandas().memory_usage(deep=deep)
 
     def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
         import pyspark.sql.functions as F

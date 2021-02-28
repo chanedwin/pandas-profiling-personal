@@ -648,7 +648,7 @@ def test_describe_spark_df(
     column,
     describe_data,
     expected_spark_results,
-    summarizer,
+    spark_summarizer,
     typeset,
     spark_session,
     spark_context,
@@ -666,7 +666,7 @@ def test_describe_spark_df(
 
     describe_data_frame = SparkDataFrame(sdf)
 
-    results = describe("title", describe_data_frame, summarizer, typeset)
+    results = describe("title", describe_data_frame, spark_summarizer, typeset)
 
     assert {
         "analysis",

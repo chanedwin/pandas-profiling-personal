@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pandas_profiling.model.dataframe_wrappers import SparkSeries
+from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.model.summary_algorithms import (
     describe_boolean_1d,
     describe_boolean_spark_1d,
@@ -48,7 +48,8 @@ def test_boolean_count_spark(spark_session):
         pd.DataFrame([{"Hello": True}, {"Hello": False}, {"Hello": True}])
     )
     _, results = describe_boolean_spark_1d(
-        SparkSeries(sdf), {"value_counts_without_nan": pd.Series({True: 2, False: 1})}
+        SparkDataFrame(sdf),
+        {"Hello": {"value_counts_without_nan": pd.Series({True: 2, False: 1})}},
     )
-    assert results["top"]
-    assert results["freq"] == 2
+    assert results["Hello"]["top"]
+    assert results["Hello"]["freq"] == 2

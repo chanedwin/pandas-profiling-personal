@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 import attr
 
 
@@ -21,6 +19,7 @@ class SparkSeries:
         from pyspark.sql.types import MapType
 
         self.series = series
+        self.dropna = self.series.na.drop()
         # if series type is dict, handle that separately
         if isinstance(series.schema[0].dataType, MapType):
             self.series = series.select(
@@ -30,9 +29,15 @@ class SparkSeries:
             )
 
         self.persist_bool = persist
-        series_without_na = self.series.na.drop()
-        series_without_na.persist()
-        self.dropna = series_without_na
+        if self.persist_bool:
+            series.persist()
+            self.dropna.persist()
+
+        # compute useful statistics once
+        self.n_rows = self.series.count()
+        self.dropna_count = self.dropna.count()
+        self.distinct = self.dropna.distinct().count()
+        self.unique = self.dropna.dropDuplicates().count()
 
     @property
     def type(self):
@@ -45,24 +50,6 @@ class SparkSeries:
     @property
     def empty(self) -> bool:
         return self.n_rows == 0
-
-    def unpersist_series_without_na(self):
-        """
-        Useful wrapper for getting the internal data series but with NAs dropped
-        Returns: internal spark series without nans
-
-        """
-        self.dropna.unpersist()
-
-    def fillna(self, fill=None) -> "SparkSeries":
-        if fill is not None:
-            return SparkSeries(self.series.na.fill(fill), persist=self.persist_bool)
-        else:
-            return SparkSeries(self.series.na.fillna(), persist=self.persist_bool)
-
-    @property
-    def n_rows(self) -> int:
-        return self.series.count()
 
     def value_counts(self):
         """
@@ -93,28 +80,11 @@ class SparkSeries:
         value_counts.persist()
         return value_counts
 
-    @lru_cache()
     def count_na(self):
-        return self.n_rows - self.dropna.count()
+        return self.n_rows - self.dropna_count
 
     def __len__(self):
         return self.n_rows
-
-    def memory_usage(self, deep):
-        """
-        Warning! this memory usage is only a sample
-        TODO: can we make this faster or not use a sample?
-        """
-        sample = self.n_rows ** (1 / 3)
-        percentage = sample / self.n_rows
-        inverse_percentage = 1 / percentage
-        return (
-            inverse_percentage
-            * self.series.sample(fraction=percentage)
-            .toPandas()
-            .memory_usage(deep=deep)
-            .sum()
-        )
 
     def get_spark_series(self):
         return self.series
@@ -126,9 +96,3 @@ class SparkSeries:
     def unpersist(self):
         if self.persist_bool:
             self.series.unpersist()
-
-    def distinct(self):
-        return self.dropna.distinct().count()
-
-    def unique(self):
-        return self.dropna.dropDuplicates().count()
