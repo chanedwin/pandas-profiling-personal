@@ -129,9 +129,8 @@ def describe(
             key: value for key, value in correlations.items() if value is not None
         }
 
-        # Scatter matrix -> if is spark and config["spark"]["scatter"] is False, don't scatter matrix
         pbar.set_postfix_str("Get scatter matrix")
-        if not isinstance(df, SparkDataFrame) or config["spark"]["scatter"].get(bool):
+        if config["scatter"]["compute"].get(bool):
             scatter_matrix = get_scatter_matrix(df, interval_columns)
         else:
             scatter_matrix = {}

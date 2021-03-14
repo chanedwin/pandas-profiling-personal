@@ -5,8 +5,9 @@ from typing import List, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from pandas_profiling.config import config as config
+
 # annotations allow class methods to return the same class in python < 3.10
-from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.utils.dataframe import rename_index
 
 UNWRAPPED_DATAFRAME_WARNING = """Attempting to pass a pandas dataframe directly into a function that takes a wrapped dataframe, 
@@ -346,9 +347,8 @@ class SparkDataFrame(GenericDataFrame):
     def __init__(self, df, persist=True):
         super().__init__()
         self.df = df
-        self.persist_bool = persist
-        self.dropna = self.df.na.drop()
-        self.dropna.persist()
+        self.persist_bool: bool = persist
+        self.persist()
 
         # get all columns in df that are numeric as pearson works only on numeric columns
         numeric_columns = self.get_numeric_columns()
@@ -359,10 +359,18 @@ class SparkDataFrame(GenericDataFrame):
             # Can't compute correlations with 1 or less columns
             # assemble all numeric columns into a vector
             assembler = VectorAssembler(inputCols=numeric_columns, outputCol="features")
-            output_df = assembler.transform(self.dropna)
+            output_df = assembler.transform(self.df)
             self.as_vector = output_df
 
-        self.n_rows = self.df.count()
+        self.n_rows: int = self.df.count()
+
+        # here we generate a sample in pandas, so we can keep calling this sample
+        sample = config["spark"]["sample"].get(int)
+        if self.n_rows < sample:
+            self.sample: pd.DataFrame = self.df.toPandas()
+        else:
+            percentage = sample / self.n_rows
+            self.sample: pd.DataFrame = self.df.sample(fraction=percentage).toPandas()
 
     @staticmethod
     def check_if_corresponding_engine(obj) -> bool:
@@ -399,7 +407,10 @@ class SparkDataFrame(GenericDataFrame):
 
     @staticmethod
     def preprocess(df):
-        return df
+        if config["spark"]["dropna"].get(str) == "dataframe":
+            return df.na.drop()
+        else:
+            return df
 
     @property
     def columns(self) -> List[str]:
@@ -433,9 +444,7 @@ class SparkDataFrame(GenericDataFrame):
         return pd.DataFrame(self.df.head(n), columns=self.columns)
 
     def sample(self, n, with_replacement=True):
-        return self.df.sample(
-            withReplacement=with_replacement, frac=n / self.n_rows
-        ).toPandas()
+        return self.sample.sample(n=n, replace=with_replacement)
 
     def __len__(self) -> int:
         return self.n_rows
@@ -444,16 +453,9 @@ class SparkDataFrame(GenericDataFrame):
         return self.df
 
     lru_cache()
+
     def get_memory_usage(self, deep: bool = False):
-        # TODO : put sample as a config
-        sample = 1000
-        if self.n_rows < sample:
-            return self.df.toPandas().memory_usage(deep=deep)
-        else:
-            percentage = sample / self.n_rows
-            return (
-                self.df.sample(fraction=percentage).toPandas().memory_usage(deep=deep)
-            )
+        return 1000 * self.sample.memory_usage(deep=deep)
 
     def groupby_get_n_largest_dups(self, columns, n=None) -> pd.DataFrame:
         import pyspark.sql.functions as F
@@ -489,9 +491,7 @@ class SparkDataFrame(GenericDataFrame):
         number of deduplicated rows - > self.dropna.dropDuplicates().count()
         thus to get number of duplicate rows, we take number of deduplicated rows - number of unique rows
         """
-        num_duplicates = (
-            self.dropna.dropDuplicates().count() - self.dropna.distinct().count()
-        )
+        num_duplicates = self.df.dropDuplicates().count() - self.df.distinct().count()
 
         return num_duplicates
 
@@ -559,7 +559,7 @@ class SparkDataFrame(GenericDataFrame):
             series = self.df.select(name)
             # if series type is dict, handle that separately
             if isinstance(series.schema[0].dataType, MapType):
-                new_df = self.dropna.groupby(
+                new_df = self.df.groupby(
                     map_keys(series[name]).alias("key"),
                     map_values(series[name]).alias("value"),
                 ).count()
@@ -569,7 +569,7 @@ class SparkDataFrame(GenericDataFrame):
                     .orderBy("count", ascending=False)
                 )
             else:
-                value_counts = self.dropna.groupBy(name).count()
+                value_counts = self.df.groupBy(name).count()
             value_count_map["name"] = value_counts
         return value_count_map
 

@@ -165,7 +165,7 @@ def numeric_stats_numpy(present_values, series, series_description):
     }
 
 
-def numeric_stats_spark(df: SparkDataFrame,summary ):
+def numeric_stats_spark(df: SparkDataFrame, summary):
     import pyspark.sql.functions as F
 
     column_names = df.columns
@@ -177,8 +177,7 @@ def numeric_stats_spark(df: SparkDataFrame,summary ):
     final_dataframe = spark.createDataFrame(row, ["join_col"])
     for column in column_names:
         final_dataframe = final_dataframe.join(
-            summary[column]["series"].dropna
-            .select(
+            summary[column]["series"].series.select(
                 F.mean(column).alias(f"{column}_mean"),
                 F.stddev(column).alias(f"{column}_std"),
                 F.variance(column).alias(f"{column}_variance"),
@@ -486,9 +485,14 @@ def describe_counts_spark(
     Returns:
         A dictionary with the count values (with and without NaN, distinct).
     """
-    # we cannot batch this process sadly
     for column in df.columns:
-        series = SparkSeries(df.get_spark_df().select(column), persist=df.persist_bool)
+
+        # we need to compute value counts for each column, which means this cannot be batched
+        series = SparkSeries(
+            df.get_spark_df().select(column),
+            sample=df.sample[column],
+            persist=df.persist_bool,
+        )
         spark_value_counts = series.value_counts()
 
         # max number of rows to visualise on histogram, most common values taken
@@ -533,16 +537,21 @@ def describe_supported_spark(
         series_summary = series_description[column]
         count = series_summary["count"]
         series = series_summary["series"]
-        distinct_count = series.distinct
-        unique_count = series.unique
-
-        stats = {
-            "n_distinct": distinct_count,
-            "p_distinct": distinct_count / count,
-            "is_unique": unique_count == count,
-            "n_unique": unique_count,
-            "p_unique": unique_count / count,
-        }
+        stats = {}
+        if config["vars"]["common"]["distinct"].get(bool):
+            distinct_count = series.distinct
+            stats.update(
+                {"n_distinct": distinct_count, "p_distinct": distinct_count / count}
+            )
+        if config["vars"]["common"]["unique"].get(bool):
+            unique_count = series.unique
+            stats.update(
+                {
+                    "is_unique": unique_count == count,
+                    "n_unique": unique_count,
+                    "p_unique": unique_count / count,
+                }
+            )
         series_summary.update(stats)
 
     return df, series_description
@@ -571,7 +580,7 @@ def describe_generic_spark(
                 "n": length,
                 "p_missing": series_summary["n_missing"] / length,
                 "count": length - series_summary["n_missing"],
-                "memory_size": memory_usage[column],
+                "memory_size": memory_usage[column].sum(),
             }
         )
 
@@ -602,13 +611,16 @@ def describe_numeric_spark_1d(
         series_summary.update(numeric_stats[column])
 
         value_counts = series_summary["value_counts_without_nan"]
-        series = series_summary["series"]
-        infinity_values = [np.inf, -np.inf]
-        series_summary["n_infinite"] = series.dropna.where(
-            series.dropna[series.name].isin(infinity_values)
-        ).count()
 
-        series_summary["n_zeros"] = series.dropna.where(f"{series.name} = 0").count()
+        series = series_summary["series"]
+
+        if config["vars"]["num"]["infinite"].get(bool):
+            infinity_values = [np.inf, -np.inf]
+            series_summary["n_infinite"] = series.series.where(
+                series.series[series.name].isin(infinity_values)
+            ).count()
+
+        series_summary["n_zeros"] = series.series.where(f"{series.name} = 0").count()
 
         quantiles = config["vars"]["num"]["quantiles"].get(list)
         quantile_threshold = config["spark"]["quantile_error"].get(float)
@@ -618,7 +630,7 @@ def describe_numeric_spark_1d(
                 f"{percentile:.0%}": value
                 for percentile, value in zip(
                     quantiles,
-                    series.dropna.stat.approxQuantile(
+                    series.series.stat.approxQuantile(
                         series.name, quantiles, quantile_threshold
                     ),
                 )
@@ -627,14 +639,15 @@ def describe_numeric_spark_1d(
 
         median = series_summary["50%"]
 
-        mad = series.dropna.select(
-            (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
-        ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
-        series_summary.update(
-            {
-                "mad": mad,
-            }
-        )
+        if config["vars"]["num"]["median_absolute_deviation"].get(bool):
+            mad = series.series.select(
+                (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
+            ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
+            series_summary.update(
+                {
+                    "mad": mad,
+                }
+            )
 
         series_summary["range"] = series_summary["max"] - series_summary["min"]
 
@@ -645,17 +658,21 @@ def describe_numeric_spark_1d(
             else np.NaN
         )
         series_summary["p_zeros"] = series_summary["n_zeros"] / series_summary["n"]
+
         series_summary["p_infinite"] = (
             series_summary["n_infinite"] / series_summary["n"]
         )
 
-        # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
-        # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
-        series_summary["monotonic_increase"] = False
-        series_summary["monotonic_decrease"] = False
+        if config["vars"]["num"]["monotonicity"].get(bool):
 
-        series_summary["monotonic_increase_strict"] = False
-        series_summary["monotonic_decrease_strict"] = False
+            # TODO - enable this feature
+            # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
+            # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
+            series_summary["monotonic_increase"] = False
+            series_summary["monotonic_decrease"] = False
+
+            series_summary["monotonic_increase_strict"] = False
+            series_summary["monotonic_decrease_strict"] = False
 
         # this function only displays the top N (see config) values for a histogram.
         # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
@@ -664,7 +681,7 @@ def describe_numeric_spark_1d(
         series_summary.update(
             histogram_compute(
                 value_counts.index.values,
-                series_summary["n_distinct"],
+                series_summary.get("n_distinct", 200),
                 weights=value_counts.values,
             )
         )
@@ -698,13 +715,15 @@ def describe_categorical_spark_1d(
         # the alternative is to do this in spark natively, but it is not trivial
         series_summary.update(
             histogram_compute(
-                value_counts, series_summary["n_distinct"], name="histogram_frequencies"
+                value_counts,
+                series_summary.get("n_distinct", 200),
+                name="histogram_frequencies",
             )
         )
 
         redact = config["vars"]["cat"]["redact"].get(bool)
         if not redact:
-            series_summary.update({"first_rows": series.dropna.limit(5).toPandas()})
+            series_summary.update({"first_rows": series.series.limit(5).toPandas()})
 
         # do not do chi_square for now, too slow
         # if chi_squared_threshold > 0.0:
@@ -739,9 +758,7 @@ def describe_categorical_spark_1d(
         words = config["vars"]["cat"]["words"]
         to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
         if words:
-            limited_series = series.dropna.limit(to_pandas_limit).toPandas()[
-                series.name
-            ]
+            limited_series = series.sample.sample(to_pandas_limit)
             limited_series.astype(str)
             series_summary.update(word_summary(limited_series))
         # if coerce_str_to_date:

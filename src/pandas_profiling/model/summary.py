@@ -307,7 +307,7 @@ def _get_table_stats_pandas(df: PandasDataFrame, variable_stats: dict) -> dict:
 def _get_table_stats_spark(df: SparkDataFrame, variable_stats: dict) -> dict:
     n = len(df)
 
-    memory_size = 1000 * df.get_memory_usage(deep=config["memory_deep"].get(bool)).sum()
+    memory_size = df.get_memory_usage(deep=config["memory_deep"].get(bool)).sum()
     record_size = float(memory_size) / n
 
     table_stats = {

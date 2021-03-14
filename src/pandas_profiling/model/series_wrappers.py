@@ -1,5 +1,7 @@
 import attr
 
+from pandas_profiling.config import config as config
+
 
 @attr.s
 class Sample:
@@ -14,12 +16,11 @@ class SparkSeries:
     A lot of optimisations left to do (persisting, caching etc), but when functionality completed
     """
 
-    def __init__(self, series, persist=True):
+    def __init__(self, series, sample, persist=True):
         from pyspark.sql.functions import array, map_keys, map_values
         from pyspark.sql.types import MapType
 
         self.series = series
-        self.dropna = self.series.na.drop()
         # if series type is dict, handle that separately
         if isinstance(series.schema[0].dataType, MapType):
             self.series = series.select(
@@ -29,15 +30,24 @@ class SparkSeries:
             )
 
         self.persist_bool = persist
-        if self.persist_bool:
-            series.persist()
-            self.dropna.persist()
+        self.series.persist()
+
+        # TODO this needs to be computed before dropna
+        self.n_rows = self.series.count()
+
+        # if dropna is not handled at the dataframe level, we must handle at series level
+        if config["spark"]["dropna"].get(str) == "series":
+            self.series = self.series.na.drop()
+            self.series.persist()
 
         # compute useful statistics once
-        self.n_rows = self.series.count()
-        self.dropna_count = self.dropna.count()
-        self.distinct = self.dropna.distinct().count()
-        self.unique = self.dropna.dropDuplicates().count()
+        self.dropna_count = self.series.count()
+        if config["vars"]["common"]["distinct"].get(bool):
+            self.distinct = self.series.distinct().count()
+        if config["vars"]["common"]["unique"].get(bool):
+            self.unique = self.series.dropDuplicates().count()
+
+        self.sample = sample
 
     @property
     def type(self):
@@ -60,23 +70,7 @@ class SparkSeries:
         Returns:
 
         """
-
-        from pyspark.sql.functions import array, map_keys, map_values
-        from pyspark.sql.types import MapType
-
-        # if series type is dict, handle that separately
-        if isinstance(self.series.schema[0].dataType, MapType):
-            new_df = self.dropna.groupby(
-                map_keys(self.series[self.name]).alias("key"),
-                map_values(self.series[self.name]).alias("value"),
-            ).count()
-            value_counts = (
-                new_df.withColumn(self.name, array(new_df["key"], new_df["value"]))
-                .select(self.name, "count")
-                .orderBy("count", ascending=False)
-            )
-        else:
-            value_counts = self.dropna.groupBy(self.name).count()
+        value_counts = self.series.groupBy(self.name).count()
         value_counts.persist()
         return value_counts
 
@@ -85,9 +79,6 @@ class SparkSeries:
 
     def __len__(self):
         return self.n_rows
-
-    def get_spark_series(self):
-        return self.series
 
     def persist(self):
         if self.persist_bool:

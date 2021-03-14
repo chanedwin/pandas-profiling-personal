@@ -50,7 +50,7 @@ def _named_aggregate_summary_pandas(series: pd.Series, key: str):
 def _named_aggregate_summary_spark(series: SparkSeries, key: str):
     import pyspark.sql.functions as F
 
-    lengths = series.dropna.select(F.length(series.name).alias("length"))
+    lengths = series.series.select(F.length(series.name).alias("length"))
 
     # do not count length of nans
     numeric_results_df = (
@@ -93,20 +93,7 @@ def _length_summary_pandas(series: pd.Series, summary: dict = {}) -> dict:
 
 @length_summary.register(SparkSeries)
 def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
-    import pyspark.sql.functions as F
-
-    length_values_sample = config["spark"]["length_values_sample"].get(int)
-    if length_values_sample >= series.n_rows:
-        percentage = 1.0
-    else:
-        percentage = length_values_sample / series.n_rows
-    # do not count length of nans
-    length = (
-        series.dropna.select(F.length(series.name))
-        .sample(percentage)
-        .toPandas()
-        .squeeze()
-    )
+    length = series.sample.str.len()
 
     summary.update({"length": length})
     summary.update(named_aggregate_summary(series, "length"))
@@ -343,7 +330,7 @@ def _get_character_counts_spark(series: SparkSeries) -> Counter:
     # this function is optimised to split all characters and explode the characters and then groupby the characters
     # because the number of characters is limited, the return dataset is small -> can return everything to pandas
     df = (
-        series.dropna.select(F.explode(F.split(F.col(series.name), "")))
+        series.series.select(F.explode(F.split(F.col(series.name), "")))
         .groupby("col")
         .count()
         .toPandas()

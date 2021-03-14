@@ -29,45 +29,57 @@ def render_real(summary):
         summary["description"],
     )
 
+    compute_infinite = config["vars"]["num"]["infinite"].get(bool)
+    compute_distinct = config["vars"]["common"]["distinct"].get(bool)
+
     table1 = Table(
-        [
-            {
-                "name": "Distinct",
-                "value": summary["n_distinct"],
-                "fmt": "fmt",
-                "alert": "n_distinct" in summary["warn_fields"],
-            },
-            {
-                "name": "Distinct (%)",
-                "value": summary["p_distinct"],
-                "fmt": "fmt_percent",
-                "alert": "p_distinct" in summary["warn_fields"],
-            },
-            {
-                "name": "Missing",
-                "value": summary["n_missing"],
-                "fmt": "fmt",
-                "alert": "n_missing" in summary["warn_fields"],
-            },
-            {
-                "name": "Missing (%)",
-                "value": summary["p_missing"],
-                "fmt": "fmt_percent",
-                "alert": "p_missing" in summary["warn_fields"],
-            },
-            {
-                "name": "Infinite",
-                "value": summary["n_infinite"],
-                "fmt": "fmt",
-                "alert": "n_infinite" in summary["warn_fields"],
-            },
-            {
-                "name": "Infinite (%)",
-                "value": summary["p_infinite"],
-                "fmt": "fmt_percent",
-                "alert": "p_infinite" in summary["warn_fields"],
-            },
-        ]
+        list(
+            filter(
+                lambda x: x,
+                [
+                    {
+                        "name": "Distinct",
+                        "value": summary["n_distinct"],
+                        "fmt": "fmt",
+                        "alert": "n_distinct" in summary["warn_fields"],
+                    } if compute_distinct else None ,
+                    {
+                        "name": "Distinct (%)",
+                        "value": summary["p_distinct"],
+                        "fmt": "fmt_percent",
+                        "alert": "p_distinct" in summary["warn_fields"],
+                    } if compute_distinct else None ,
+                    {
+                        "name": "Missing",
+                        "value": summary["n_missing"],
+                        "fmt": "fmt",
+                        "alert": "n_missing" in summary["warn_fields"],
+                    },
+                    {
+                        "name": "Missing (%)",
+                        "value": summary["p_missing"],
+                        "fmt": "fmt_percent",
+                        "alert": "p_missing" in summary["warn_fields"],
+                    },
+                    {
+                        "name": "Infinite",
+                        "value": summary["n_infinite"],
+                        "fmt": "fmt",
+                        "alert": "n_infinite" in summary["warn_fields"],
+                    }
+                    if compute_infinite
+                    else None,
+                    {
+                        "name": "Infinite (%)",
+                        "value": summary["p_infinite"],
+                        "fmt": "fmt_percent",
+                        "alert": "p_infinite" in summary["warn_fields"],
+                    }
+                    if compute_infinite
+                    else None,
+                ],
+            )
+        )
     )
 
     table2 = Table(
@@ -140,46 +152,71 @@ def render_real(summary):
         name="Quantile statistics",
     )
 
-    if summary["monotonic_increase_strict"]:
-        monotocity = "Strictly increasing"
-    elif summary["monotonic_decrease_strict"]:
-        monotocity = "Strictly decreasing"
-    elif summary["monotonic_increase"]:
-        monotocity = "Increasing"
-    elif summary["monotonic_decrease"]:
-        monotocity = "Decreasing"
+    compute_monotonic = config["vars"]["num"]["infinite"].get(bool)
+    if compute_monotonic:
+        if summary["monotonic_increase_strict"]:
+            monotonicity = "Strictly increasing"
+        elif summary["monotonic_decrease_strict"]:
+            monotonicity = "Strictly decreasing"
+        elif summary["monotonic_increase"]:
+            monotonicity = "Increasing"
+        elif summary["monotonic_decrease"]:
+            monotonicity = "Decreasing"
+        else:
+            monotonicity = "Not monotonic"
     else:
-        monotocity = "Not monotonic"
+        monotonicity = None
+
+    compute_mad = config["vars"]["num"]["infinite"].get(bool)
 
     descriptive_statistics = Table(
-        [
-            {
-                "name": "Standard deviation",
-                "value": summary["std"],
-                "fmt": "fmt_numeric",
-            },
-            {
-                "name": "Coefficient of variation (CV)",
-                "value": summary["cv"],
-                "fmt": "fmt_numeric",
-            },
-            {"name": "Kurtosis", "value": summary["kurtosis"], "fmt": "fmt_numeric"},
-            {"name": "Mean", "value": summary["mean"], "fmt": "fmt_numeric"},
-            {
-                "name": "Median Absolute Deviation (MAD)",
-                "value": summary["mad"],
-                "fmt": "fmt_numeric",
-            },
-            {
-                "name": "Skewness",
-                "value": summary["skewness"],
-                "fmt": "fmt_numeric",
-                "class": "alert" if "skewness" in summary["warn_fields"] else "",
-            },
-            {"name": "Sum", "value": summary["sum"], "fmt": "fmt_numeric"},
-            {"name": "Variance", "value": summary["variance"], "fmt": "fmt_numeric"},
-            {"name": "Monotocity", "value": monotocity, "fmt": "fmt"},
-        ],
+        list(
+            filter(
+                lambda x: x,
+                [
+                    {
+                        "name": "Standard deviation",
+                        "value": summary["std"],
+                        "fmt": "fmt_numeric",
+                    },
+                    {
+                        "name": "Coefficient of variation (CV)",
+                        "value": summary["cv"],
+                        "fmt": "fmt_numeric",
+                    },
+                    {
+                        "name": "Kurtosis",
+                        "value": summary["kurtosis"],
+                        "fmt": "fmt_numeric",
+                    },
+                    {"name": "Mean", "value": summary["mean"], "fmt": "fmt_numeric"},
+                    {
+                        "name": "Median Absolute Deviation (MAD)",
+                        "value": summary["mad"],
+                        "fmt": "fmt_numeric",
+                    }
+                    if compute_mad
+                    else None,
+                    {
+                        "name": "Skewness",
+                        "value": summary["skewness"],
+                        "fmt": "fmt_numeric",
+                        "class": "alert"
+                        if "skewness" in summary["warn_fields"]
+                        else "",
+                    },
+                    {"name": "Sum", "value": summary["sum"], "fmt": "fmt_numeric"},
+                    {
+                        "name": "Variance",
+                        "value": summary["variance"],
+                        "fmt": "fmt_numeric",
+                    },
+                    {"name": "Monotocity", "value": monotonicity, "fmt": "fmt"}
+                    if compute_monotonic
+                    else None,
+                ],
+            )
+        ),
         name="Descriptive statistics",
     )
 

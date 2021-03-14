@@ -82,5 +82,5 @@ def test_summarizer():
         )
     )
     _ = format_summary(
-        pps.summarize(pd.Series([True, False, True, False, False]), Boolean)
+        pps.summarize(pd.Series([True, False, True, False, False]), "pandas", Boolean)
     )
