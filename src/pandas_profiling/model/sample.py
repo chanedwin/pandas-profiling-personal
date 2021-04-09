@@ -1,9 +1,14 @@
+from functools import singledispatch
 from typing import List
 
 import attr
-import pandas as pd
 
 from pandas_profiling.config import config
+from pandas_profiling.model.dataframe_wrappers import (
+    GenericDataFrame,
+    PandasDataFrame,
+    SparkDataFrame,
+)
 
 
 @attr.s
@@ -14,7 +19,13 @@ class Sample:
     caption = attr.ib(default=None)
 
 
-def get_sample(df: pd.DataFrame) -> List[Sample]:
+@singledispatch
+def get_sample(df: GenericDataFrame) -> List[Sample]:
+    raise NotImplementedError("This method is not implemented.")
+
+
+@get_sample.register(PandasDataFrame)
+def _get_sample_pandas(df: PandasDataFrame) -> List[Sample]:
     """Obtains a sample from head and tail of the DataFrame
 
     Args:
@@ -38,5 +49,27 @@ def get_sample(df: pd.DataFrame) -> List[Sample]:
     n_random = config["samples"]["random"].get(int)
     if n_random > 0:
         samples.append(Sample("random", df.sample(n=n_random), "Random sample"))
+
+    return samples
+
+
+@get_sample.register(SparkDataFrame)
+def _get_sample_spark(df: SparkDataFrame) -> List[Sample]:
+    """Obtains a sample from head and tail of the DataFrame
+
+    Args:
+        df: the pandas DataFrame
+
+    Returns:
+        a list of Sample objects
+    """
+    samples = []
+    n_head = config["samples"]["head"].get(int)
+    if n_head > 0:
+        samples.append(Sample("head", df.head(n=n_head), "First rows"))
+
+    n_random = config["samples"]["random"].get(int)
+    if n_random > 0:
+        samples.append(Sample("random", df.sample, "Random sample"))
 
     return samples

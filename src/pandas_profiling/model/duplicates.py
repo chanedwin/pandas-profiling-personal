@@ -1,52 +1,54 @@
-from typing import Any, Dict, Optional, Tuple
+from functools import singledispatch
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
 from pandas_profiling.config import config
+from pandas_profiling.model.dataframe_wrappers import (
+    GenericDataFrame,
+    PandasDataFrame,
+    SparkDataFrame,
+)
 
 
-def get_duplicates(
-    df: pd.DataFrame, supported_columns
+@singledispatch
+def get_duplicates(df: GenericDataFrame, supported_columns) -> Optional[pd.DataFrame]:
+    raise NotImplementedError("This method is not implemented.")
+
+
+@get_duplicates.register(PandasDataFrame)
+def _get_duplicates_pandas(
+    df: PandasDataFrame, supported_columns: List[str]
 ) -> Tuple[Dict[str, Any], Optional[pd.DataFrame]]:
     """Obtain the most occurring duplicate rows in the DataFrame.
 
     Args:
         df: the Pandas DataFrame.
         supported_columns: the columns to consider
+        n_head: top n duplicate values to return
 
     Returns:
         A subset of the DataFrame, ordered by occurrence.
     """
     n_head = config["duplicates"]["head"].get(int)
 
-    metrics: Dict[str, Any] = {}
-    if n_head > 0:
-        if supported_columns and len(df) > 0:
-            duplicates_key = config["duplicates"]["key"].get(str)
-            if duplicates_key in df.columns:
-                raise ValueError(
-                    f"Duplicates key ({duplicates_key}) may not be part of the DataFrame. Either change the "
-                    f" column name in the DataFrame or change the 'duplicates.key' parameter."
-                )
+    return df.groupby_get_n_largest_dups(supported_columns, n_head)
 
-            duplicated_rows = df.duplicated(subset=supported_columns, keep=False)
-            duplicated_rows = (
-                df[duplicated_rows]
-                .groupby(supported_columns)
-                .size()
-                .reset_index(name=duplicates_key)
-            )
 
-            metrics["n_duplicates"] = len(duplicated_rows[duplicates_key])
-            metrics["p_duplicates"] = metrics["n_duplicates"] / len(df)
+@get_duplicates.register(SparkDataFrame)
+def _get_duplicates_spark(
+    df: SparkDataFrame, supported_columns: List[str]
+) -> Optional[pd.DataFrame]:
+    """Obtain the most occurring duplicate rows in the DataFrame.
 
-            return (
-                metrics,
-                duplicated_rows.nlargest(n_head, duplicates_key),
-            )
-        else:
-            metrics["n_duplicates"] = 0
-            metrics["p_duplicates"] = 0.0
-            return metrics, None
-    else:
-        return metrics, None
+    Args:
+        df: the Pandas DataFrame.
+        supported_columns: the columns to consider
+        n_head: top n duplicate values to return
+
+    Returns:
+        A subset of the DataFrame, ordered by occurrence.
+    """
+    n_head = config["duplicates"]["head"].get(int)
+
+    return df.groupby_get_n_largest_dups(supported_columns, n_head)

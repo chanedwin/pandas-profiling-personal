@@ -182,14 +182,15 @@ def categorical_warnings(summary: dict) -> List[Message]:
         float
     )
 
-    # High cardinality
-    if summary["n_distinct"] > cardinality_threshold_cat:
-        messages.append(
-            Message(
-                message_type=MessageType.HIGH_CARDINALITY,
-                fields={"n_distinct"},
+    if config["vars"]["common"]["distinct"]:
+        # High cardinality
+        if summary["n_distinct"] > cardinality_threshold_cat:
+            messages.append(
+                Message(
+                    message_type=MessageType.HIGH_CARDINALITY,
+                    fields={"n_distinct"},
+                )
             )
-        )
 
     if (
         "chi_squared" in summary
@@ -230,27 +231,28 @@ def generic_warnings(summary: dict) -> List[Message]:
 def supported_warnings(summary: dict) -> List[Message]:
     messages = []
 
-    if summary["n_distinct"] == summary["n"]:
-        messages.append(
-            Message(
-                message_type=MessageType.UNIQUE,
-                fields={"n_distinct", "p_distinct", "n_unique", "p_unique"},
+    if config["vars"]["common"]["distinct"]:
+        if summary["n_distinct"] == summary["n"]:
+            messages.append(
+                Message(
+                    message_type=MessageType.UNIQUE,
+                    fields={"n_distinct", "p_distinct", "n_unique", "p_unique"},
+                )
             )
-        )
-    if summary["n_distinct"] == 1:
-        summary["mode"] = summary["value_counts_without_nan"].index[0]
-        messages.append(
-            Message(
-                message_type=MessageType.CONSTANT,
-                fields={"n_distinct"},
+        if summary["n_distinct"] == 1:
+            summary["mode"] = summary["value_counts_without_nan"].index[0]
+            messages.append(
+                Message(
+                    message_type=MessageType.CONSTANT,
+                    fields={"n_distinct"},
+                )
             )
-        )
-        messages.append(
-            Message(
-                message_type=MessageType.REJECTED,
-                fields=set(),
+            messages.append(
+                Message(
+                    message_type=MessageType.REJECTED,
+                    fields=set(),
+                )
             )
-        )
     return messages
 
 

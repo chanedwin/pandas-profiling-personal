@@ -1,5 +1,5 @@
 # Title of the document
-title: "Pandas Profiling Report"
+title: "Spark Profiling Report"
 
 # Metadata
 dataset:
@@ -13,14 +13,12 @@ dataset:
 variables:
   descriptions: {}
 
-# infer dtypes
-infer_dtypes: False
-
 # Show the description at each variable (in addition to the overview tab)
 show_variable_description: True
 
 # Number of workers (0=multiprocessing.cpu_count())
-pool_size: 0
+# Spark pool size set as 1 because multiprocessing is not really needed
+pool_size: 1
 
 # Show the progress bar
 progress_bar: True
@@ -28,8 +26,8 @@ progress_bar: True
 # Per variable type description settings
 vars:
     common:
-        distinct: False
-        unique: False
+        distinct: True
+        unique: True
     num:
         quantiles:
               - 0.05
@@ -40,7 +38,7 @@ vars:
         skewness_threshold: 20
         low_categorical_threshold: 5
 # Set to zero to disable
-        chi_squared_threshold: 0.0
+        chi_squared_threshold: 0.999
     cat:
         length: False
         characters: False
@@ -48,10 +46,9 @@ vars:
         cardinality_threshold: 50
         n_obs: 5
 # Set to zero to disable
-        chi_squared_threshold: 0.0
+        chi_squared_threshold: 0.999
         coerce_str_to_date: False
-        redact: False
-        histogram_largest: 10
+        redact: True
     bool:
         n_obs: 3
 # string to boolean mappings pairs (true, false)
@@ -60,31 +57,30 @@ vars:
           - ["yes", "no"]
           - ["y", "n"]
           - ["true", "false"]
-    path:
-        active: False
     file:
         active: False
     image:
         active: False
-        exif: False
-        hash: False
+        exif: True
+        hash: True
+    path:
+        active: False
     url:
         active: False
-
 
 # Sort the variables. Possible values: ascending, descending or None (leaves original sorting)
 sort: None
 
 # which diagrams to show
 missing_diagrams:
-    bar: False
+    bar: True
     matrix: False
     heatmap: False
     dendrogram: False
 
 correlations:
     pearson:
-      calculate: False
+      calculate: True
       warn_high_correlations: True
       threshold: 0.9
     spearman:
@@ -107,18 +103,18 @@ correlations:
 scatter:
     compute: False
 
-# Spark specific correlations
+# Spark specific config
 spark:
     persist: True
-    quantile_error: 0.1
+    quantile_error: 0.05
     to_pandas_limit: 100
-    sample: 500
-    dropna: dataframe
+    sample: 1000
+    dropna: series
 
 # Bivariate / Pairwise relations
 interactions:
   targets: []
-  continuous: False
+  continuous: True
 
 # For categorical
 categorical_maximum_correlation_distinct: 100
@@ -143,7 +139,7 @@ plot:
 
     pie:
 # display a pie chart if the number of distinct values is smaller or equal (set to 0 to disable)
-      max_unique: 0
+        max_unique: 10
 
     histogram:
         x_axis_labels: True
@@ -164,13 +160,12 @@ memory_deep: False
 
 # Configuration related to the duplicates
 duplicates:
-    head: 0
-    key: "# duplicates"
+    head: 10
 
 # Configuration related to the samples area
 samples:
-    head: 0
-    tail: 0
+    head: 10
+    tail: 10
     random: 0
 
 # Configuration related to the rejection of variables
