@@ -56,9 +56,6 @@ def describe(
         df = df_wrapper.preprocess(df)
         df = df_wrapper(df)
 
-    if df.empty:
-        raise ValueError("df can not be empty")
-
     # run spark specific logic
     if isinstance(df, SparkDataFrame):
         # test if the version pyspark and pyarrow versions are compatible

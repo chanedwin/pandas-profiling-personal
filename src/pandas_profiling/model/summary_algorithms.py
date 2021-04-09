@@ -640,6 +640,11 @@ def describe_numeric_spark_1d(
 
         series_summary["n_zeros"] = series.series.where(f"{series.name} = 0").count()
 
+        series_summary["n_negative"] = series.series.where(f"{series.name} < 0").count()
+        series_summary["p_negative"] = (
+            series_summary["n_negative"] / series_summary["n"]
+        )
+
         quantiles = config["vars"]["num"]["quantiles"].get(list)
         quantile_threshold = config["spark"]["quantile_error"].get(float)
 

@@ -489,13 +489,6 @@ class SparkDataFrame(GenericDataFrame):
         from pyspark.sql.functions import array, map_keys, map_values
         from pyspark.sql.types import MapType
 
-        metrics: Dict[str, Any] = {}
-
-        # TODO COMPUTE THIS PROPERLY
-        # metrics["n_duplicates"] = len(duplicated_rows[duplicates_key])
-        metrics["n_duplicates"] = 0
-        metrics["p_duplicates"] = metrics["n_duplicates"] / len(self.df)
-
         # this is important because dict functions cannot be groupby
         column_type_tuple = list(zip(self.columns, [i.dataType for i in self.schema]))
         converted_dataframe = self.get_spark_df()
@@ -508,14 +501,24 @@ class SparkDataFrame(GenericDataFrame):
                         map_values(converted_dataframe[column]),
                     ),
                 )
-        return metrics, (
+
+        metrics: Dict[str, Any] = {}
+
+        # TODO COMPUTE THIS PROPERLY
+        # metrics["n_duplicates"] = len(duplicated_rows[duplicates_key])
+
+        duplicated_df = (
             converted_dataframe.groupBy(self.df.columns)
             .count()
             .withColumn("count", F.col("count").cast("int"))
             .filter(F.col("count") > 1)
-            .orderBy("count", ascending=False)
-            .limit(n)
-            .toPandas()
+        )
+
+        metrics["n_duplicates"] = duplicated_df.count()
+        metrics["p_duplicates"] = metrics["n_duplicates"] / self.n_rows
+
+        return metrics, (
+            duplicated_df.orderBy("count", ascending=False).limit(n).toPandas()
         )
 
     def get_duplicate_rows_count(self, subset: List[str]) -> int:
