@@ -85,7 +85,6 @@ def render_url(summary):
         summary["description"],
     )
 
-
     compute_distinct = config["vars"]["common"]["distinct"].get(bool)
 
     table = Table(

@@ -21,7 +21,9 @@ class SparkSeries:
         from pyspark.sql.types import MapType
 
         self.series = series
-        # if series type is dict, handle that separately
+
+        # if series type is dict, cast to tuple of (key, value) for series stats
+        # reason is MapType does not support a lot of APIs (like groupby)
         if isinstance(series.schema[0].dataType, MapType):
             self.series = series.select(
                 array(map_keys(series[self.name]), map_values(series[self.name])).alias(
@@ -30,18 +32,17 @@ class SparkSeries:
             )
 
         self.persist_bool = persist
-        self.series.persist()
+        self.persist()
 
-        # TODO this needs to be computed before dropna
+        # count rows before dropping NAs
         self.n_rows = self.series.count()
 
-        # if dropna is not handled at the dataframe level, we must handle at series level
-        if config["spark"]["dropna"].get(str) == "series":
-            self.series = self.series.na.drop()
-            self.series.persist()
+        # now drop nas, persist,and count again
+        self.series = self.series.na.drop()
+        self.persist()
+        self.dropna_count = self.series.count()
 
         # compute useful statistics once
-        self.dropna_count = self.series.count()
         if config["vars"]["common"]["distinct"].get(bool):
             self.distinct = self.series.distinct().count()
         if config["vars"]["common"]["unique"].get(bool):

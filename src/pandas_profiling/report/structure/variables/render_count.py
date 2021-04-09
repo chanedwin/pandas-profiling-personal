@@ -68,8 +68,6 @@ def render_count(summary):
         )
     )
 
-
-
     table2 = Table(
         [
             {

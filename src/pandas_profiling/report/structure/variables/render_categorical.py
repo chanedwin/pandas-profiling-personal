@@ -16,22 +16,29 @@ from pandas_profiling.visualisation.plot import histogram, pie_plot
 def render_categorical_frequency(summary, varid, image_format):
     compute_unique = config["vars"]["common"]["unique"]
     frequency_table = Table(
-        list(filter(lambda x:x,
-        [
-            {
-                "name": "Unique",
-                "value": f"{summary['n_unique']} {help('The number of unique values (all values that occur exactly once in the dataset).')}",
-                "fmt": "raw",
-                "alert": "n_unique" in summary["warn_fields"],
-            } if compute_unique else None ,
-            {
-                "name": "Unique (%)",
-                "value": summary["p_unique"],
-                "fmt": "fmt_percent",
-                "alert": "p_unique" in summary["warn_fields"],
-            } if compute_unique else None ,
-        ],
-                    )),
+        list(
+            filter(
+                lambda x: x,
+                [
+                    {
+                        "name": "Unique",
+                        "value": f"{summary['n_unique']} {help('The number of unique values (all values that occur exactly once in the dataset).')}",
+                        "fmt": "raw",
+                        "alert": "n_unique" in summary["warn_fields"],
+                    }
+                    if compute_unique
+                    else None,
+                    {
+                        "name": "Unique (%)",
+                        "value": summary["p_unique"],
+                        "fmt": "fmt_percent",
+                        "alert": "p_unique" in summary["warn_fields"],
+                    }
+                    if compute_unique
+                    else None,
+                ],
+            )
+        ),
         name="Unique",
         anchor_id=f"{varid}_unique_stats",
     )
@@ -418,7 +425,7 @@ def render_categorical(summary):
         string_items.append(length_histo)
 
     max_unique = config["plot"]["pie"]["max_unique"].get(int)
-    if compute_distinct :
+    if compute_distinct:
         if max_unique > 0 and summary["n_distinct"] <= max_unique:
             string_items.append(
                 Image(

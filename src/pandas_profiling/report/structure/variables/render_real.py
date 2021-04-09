@@ -29,7 +29,6 @@ def render_real(summary):
         summary["description"],
     )
 
-    compute_infinite = config["vars"]["num"]["infinite"].get(bool)
     compute_distinct = config["vars"]["common"]["distinct"].get(bool)
 
     table1 = Table(
@@ -42,13 +41,17 @@ def render_real(summary):
                         "value": summary["n_distinct"],
                         "fmt": "fmt",
                         "alert": "n_distinct" in summary["warn_fields"],
-                    } if compute_distinct else None ,
+                    }
+                    if compute_distinct
+                    else None,
                     {
                         "name": "Distinct (%)",
                         "value": summary["p_distinct"],
                         "fmt": "fmt_percent",
                         "alert": "p_distinct" in summary["warn_fields"],
-                    } if compute_distinct else None ,
+                    }
+                    if compute_distinct
+                    else None,
                     {
                         "name": "Missing",
                         "value": summary["n_missing"],
@@ -66,17 +69,13 @@ def render_real(summary):
                         "value": summary["n_infinite"],
                         "fmt": "fmt",
                         "alert": "n_infinite" in summary["warn_fields"],
-                    }
-                    if compute_infinite
-                    else None,
+                    },
                     {
                         "name": "Infinite (%)",
                         "value": summary["p_infinite"],
                         "fmt": "fmt_percent",
                         "alert": "p_infinite" in summary["warn_fields"],
-                    }
-                    if compute_infinite
-                    else None,
+                    },
                 ],
             )
         )
@@ -152,22 +151,16 @@ def render_real(summary):
         name="Quantile statistics",
     )
 
-    compute_monotonic = config["vars"]["num"]["infinite"].get(bool)
-    if compute_monotonic:
-        if summary["monotonic_increase_strict"]:
-            monotonicity = "Strictly increasing"
-        elif summary["monotonic_decrease_strict"]:
-            monotonicity = "Strictly decreasing"
-        elif summary["monotonic_increase"]:
-            monotonicity = "Increasing"
-        elif summary["monotonic_decrease"]:
-            monotonicity = "Decreasing"
-        else:
-            monotonicity = "Not monotonic"
+    if summary["monotonic_increase_strict"]:
+        monotonicity = "Strictly increasing"
+    elif summary["monotonic_decrease_strict"]:
+        monotonicity = "Strictly decreasing"
+    elif summary["monotonic_increase"]:
+        monotonicity = "Increasing"
+    elif summary["monotonic_decrease"]:
+        monotonicity = "Decreasing"
     else:
-        monotonicity = None
-
-    compute_mad = config["vars"]["num"]["infinite"].get(bool)
+        monotonicity = "Not monotonic"
 
     descriptive_statistics = Table(
         list(
@@ -194,9 +187,7 @@ def render_real(summary):
                         "name": "Median Absolute Deviation (MAD)",
                         "value": summary["mad"],
                         "fmt": "fmt_numeric",
-                    }
-                    if compute_mad
-                    else None,
+                    },
                     {
                         "name": "Skewness",
                         "value": summary["skewness"],
@@ -211,9 +202,7 @@ def render_real(summary):
                         "value": summary["variance"],
                         "fmt": "fmt_numeric",
                     },
-                    {"name": "Monotocity", "value": monotonicity, "fmt": "fmt"}
-                    if compute_monotonic
-                    else None,
+                    {"name": "Monotocity", "value": monotonicity, "fmt": "fmt"},
                 ],
             )
         ),

@@ -171,7 +171,7 @@ def categorical_warnings(summary: dict) -> List[Message]:
         float
     )
 
-    if config["vars"]["common"]["distinct"] :
+    if config["vars"]["common"]["distinct"]:
         # High cardinality
         if summary["n_distinct"] > cardinality_threshold_cat:
             messages.append(
@@ -220,7 +220,7 @@ def generic_warnings(summary: dict) -> List[Message]:
 def supported_warnings(summary: dict) -> List[Message]:
     messages = []
 
-    if config["vars"]["common"]["distinct"] :
+    if config["vars"]["common"]["distinct"]:
         if summary["n_distinct"] == summary["n"]:
             messages.append(
                 Message(

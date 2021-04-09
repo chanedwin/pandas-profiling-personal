@@ -31,9 +31,6 @@ vars:
         distinct: False
         unique: False
     num:
-        infinite: False
-        monotonicity: False
-        median_absolute_deviation: False
         quantiles:
               - 0.05
               - 0.25

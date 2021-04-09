@@ -614,11 +614,10 @@ def describe_numeric_spark_1d(
 
         series = series_summary["series"]
 
-        if config["vars"]["num"]["infinite"].get(bool):
-            infinity_values = [np.inf, -np.inf]
-            series_summary["n_infinite"] = series.series.where(
-                series.series[series.name].isin(infinity_values)
-            ).count()
+        infinity_values = [np.inf, -np.inf]
+        series_summary["n_infinite"] = series.series.where(
+            series.series[series.name].isin(infinity_values)
+        ).count()
 
         series_summary["n_zeros"] = series.series.where(f"{series.name} = 0").count()
 
@@ -639,15 +638,14 @@ def describe_numeric_spark_1d(
 
         median = series_summary["50%"]
 
-        if config["vars"]["num"]["median_absolute_deviation"].get(bool):
-            mad = series.series.select(
-                (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
-            ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
-            series_summary.update(
-                {
-                    "mad": mad,
-                }
-            )
+        mad = series.series.select(
+            (F.abs(F.col(series.name).cast("int") - median)).alias("abs_dev")
+        ).stat.approxQuantile("abs_dev", [0.5], quantile_threshold)[0]
+        series_summary.update(
+            {
+                "mad": mad,
+            }
+        )
 
         series_summary["range"] = series_summary["max"] - series_summary["min"]
 
@@ -663,16 +661,14 @@ def describe_numeric_spark_1d(
             series_summary["n_infinite"] / series_summary["n"]
         )
 
-        if config["vars"]["num"]["monotonicity"].get(bool):
+        # TODO - enable this feature
+        # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
+        # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
+        series_summary["monotonic_increase"] = False
+        series_summary["monotonic_decrease"] = False
 
-            # TODO - enable this feature
-            # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
-            # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
-            series_summary["monotonic_increase"] = False
-            series_summary["monotonic_decrease"] = False
-
-            series_summary["monotonic_increase_strict"] = False
-            series_summary["monotonic_decrease_strict"] = False
+        series_summary["monotonic_increase_strict"] = False
+        series_summary["monotonic_decrease_strict"] = False
 
         # this function only displays the top N (see config) values for a histogram.
         # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to

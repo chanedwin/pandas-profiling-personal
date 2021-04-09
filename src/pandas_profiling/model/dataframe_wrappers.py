@@ -407,10 +407,7 @@ class SparkDataFrame(GenericDataFrame):
 
     @staticmethod
     def preprocess(df):
-        if config["spark"]["dropna"].get(str) == "dataframe":
-            return df.na.drop()
-        else:
-            return df
+        return df
 
     @property
     def columns(self) -> List[str]:
@@ -452,8 +449,7 @@ class SparkDataFrame(GenericDataFrame):
     def get_spark_df(self):
         return self.df
 
-    lru_cache()
-
+    @lru_cache()
     def get_memory_usage(self, deep: bool = False):
         return 1000 * self.sample.memory_usage(deep=deep)
 
