@@ -29,7 +29,9 @@ def render_real(summary):
         summary["description"],
     )
 
-    compute_distinct = config["vars"]["common"]["distinct"].get(bool)
+    compute_distinct = config["engine"].get(str) != "spark" or config["spark"][
+        "compute_distinct"
+    ].get(bool)
 
     table1 = Table(
         list(

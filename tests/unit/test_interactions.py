@@ -15,9 +15,7 @@ def test_interactions_target():
     )
     targets = [f"column_{target}" for target in range(0, n_targets)]
 
-    profile = df.profile_report(
-        interactions={"continuous": True, "targets": targets}
-    )
+    profile = df.profile_report(interactions={"continuous": True, "targets": targets})
 
     total = sum(
         [len(v.keys()) for k, v in profile.get_description()["scatter"].items()]

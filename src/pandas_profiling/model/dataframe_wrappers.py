@@ -625,6 +625,8 @@ def get_appropriate_wrapper(df):
     """
     Wrap data type with proper engine from get_implemented_engines
 
+    This function also updates config with the respective engine based on input.
+
     Raises NotImplementedError if no valid engine found
 
     Args:
@@ -636,6 +638,8 @@ def get_appropriate_wrapper(df):
     implemented_engines = get_implemented_engines()
     for engine in implemented_engines:
         if engine.check_if_corresponding_engine(df):
+            # set config with engine
+            config.set_kwargs({"engine": engine})
             return engine
 
     raise NotImplementedError(

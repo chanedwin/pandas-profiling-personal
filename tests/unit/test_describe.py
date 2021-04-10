@@ -550,7 +550,6 @@ def expected_spark_results(expected_results):
 
     expected_results["s1"]["kurtosis"] = np.nan
     expected_results["s1"]["skewness"] = np.nan
-    expected_results["s1"]["monotonic_increase"] = False
 
     expected_results["bool_tf_with_nan"]["count"] = 9
     expected_results["bool_tf_with_nan"]["p_distinct"] = 0.2222222222222222
@@ -561,6 +560,8 @@ def expected_spark_results(expected_results):
     del expected_results["somedate"]["max"]
     del expected_results["somedate"]["min"]
     del expected_results["somedate"]["range"]
+    del expected_results["s1"]["monotonic_increase"]
+    del expected_results["s1"]["monotonic_increase_strict"]
 
     return expected_results
 

@@ -43,9 +43,9 @@ class SparkSeries:
         self.dropna_count = self.series.count()
 
         # compute useful statistics once
-        if config["vars"]["common"]["distinct"].get(bool):
+        if config["spark"]["compute_distinct"].get(bool):
             self.distinct = self.series.distinct().count()
-        if config["vars"]["common"]["unique"].get(bool):
+        if config["spark"]["compute_unique"].get(bool):
             self.unique = self.series.dropDuplicates().count()
 
         self.sample = sample

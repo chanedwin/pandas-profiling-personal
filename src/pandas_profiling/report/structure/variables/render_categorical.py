@@ -14,7 +14,9 @@ from pandas_profiling.visualisation.plot import histogram, pie_plot
 
 
 def render_categorical_frequency(summary, varid, image_format):
-    compute_unique = config["vars"]["common"]["unique"]
+    compute_unique = config["engine"].get(str) != "spark" or config["spark"][
+        "compute_unique"
+    ].get(bool)
     frequency_table = Table(
         list(
             filter(
@@ -320,7 +322,9 @@ def render_categorical(summary):
         summary["description"],
     )
 
-    compute_distinct = config["vars"]["common"]["distinct"].get(bool)
+    compute_distinct = config["engine"].get(str) != "spark" or config["spark"][
+        "compute_distinct"
+    ].get(bool)
 
     table = Table(
         list(

@@ -13,6 +13,12 @@ dataset:
 variables:
   descriptions: {}
 
+# computation engine/backend - this is determined at runtime
+engine : ""
+
+# infer dtypes
+infer_dtypes: True
+
 # Show the description at each variable (in addition to the overview tab)
 show_variable_description: True
 
@@ -25,9 +31,6 @@ progress_bar: True
 
 # Per variable type description settings
 vars:
-    common:
-        distinct: True
-        unique: True
     num:
         quantiles:
               - 0.05
@@ -110,6 +113,8 @@ spark:
     to_pandas_limit: 100
     sample: 1000
     dropna: series
+    compute_distinct: True
+    compute_unique: True
 
 # Bivariate / Pairwise relations
 interactions:

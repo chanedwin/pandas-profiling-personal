@@ -182,7 +182,10 @@ def categorical_warnings(summary: dict) -> List[Message]:
         float
     )
 
-    if config["vars"]["common"]["distinct"]:
+    # compute if not spark OR spark distinct config enabled
+    if config["engine"].get(str) != "spark" or config["spark"]["compute_distinct"].get(
+        bool
+    ):
         # High cardinality
         if summary["n_distinct"] > cardinality_threshold_cat:
             messages.append(
@@ -231,7 +234,9 @@ def generic_warnings(summary: dict) -> List[Message]:
 def supported_warnings(summary: dict) -> List[Message]:
     messages = []
 
-    if config["vars"]["common"]["distinct"]:
+    if config["engine"].get(str) != "spark" or config["spark"]["compute_distinct"].get(
+        bool
+    ):
         if summary["n_distinct"] == summary["n"]:
             messages.append(
                 Message(

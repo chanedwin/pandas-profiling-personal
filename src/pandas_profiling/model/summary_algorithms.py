@@ -557,12 +557,12 @@ def describe_supported_spark(
         count = series_summary["count"]
         series = series_summary["series"]
         stats = {}
-        if config["vars"]["common"]["distinct"].get(bool):
+        if config["spark"]["compute_distinct"].get(bool):
             distinct_count = series.distinct
             stats.update(
                 {"n_distinct": distinct_count, "p_distinct": distinct_count / count}
             )
-        if config["vars"]["common"]["unique"].get(bool):
+        if config["spark"]["compute_unique"].get(bool):
             unique_count = series.unique
             stats.update(
                 {
@@ -688,11 +688,7 @@ def describe_numeric_spark_1d(
         # TODO - enable this feature
         # because spark doesn't have an indexing system, there isn't really the idea of monotonic increase/decrease
         # [feature enhancement] we could implement this if the user provides an ordinal column to use for ordering
-        series_summary["monotonic_increase"] = False
-        series_summary["monotonic_decrease"] = False
-
-        series_summary["monotonic_increase_strict"] = False
-        series_summary["monotonic_decrease_strict"] = False
+        series_summary["monotonic"] = 0
 
         # this function only displays the top N (see config) values for a histogram.
         # This might be confusing if there are a lot of values of equal magnitude, but we cannot bring all the values to
