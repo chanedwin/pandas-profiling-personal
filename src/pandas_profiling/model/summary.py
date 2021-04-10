@@ -503,7 +503,6 @@ def get_scatter_matrix(df, continuous_variables):
 
 @get_scatter_matrix.register(PandasDataFrame)
 def _get_scatter_matrix_pandas(df, continuous_variables):
-    scatter_matrix = {}
     if config["interactions"]["continuous"].get(bool):
         targets = config["interactions"]["targets"].get(list)
         if len(targets) == 0:
@@ -514,11 +513,16 @@ def _get_scatter_matrix_pandas(df, continuous_variables):
         for x in targets:
             for y in continuous_variables:
                 if x in continuous_variables:
-                    subset_df = df.dropna(subset=[x, y])
-                    scatter_matrix[x][y] = scatter_pairwise(
-                        subset_df[x], subset_df[y], x, y
-                    )
+                    if y == x:
+                        continue
 
+                    # check if any na still exists, and remove it before computing scatter matrix
+                    df_temp = df[[x, y]].dropna()
+                    scatter_matrix[x][y] = scatter_pairwise(
+                        df_temp[x], df_temp[y], x, y
+                    )
+    else:
+        scatter_matrix = {}
     return scatter_matrix
 
 
