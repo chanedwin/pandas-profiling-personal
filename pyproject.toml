@@ -7,3 +7,4 @@ markers =  ["sparktest"]
 "master" = "local[*]"
 "spark.sql.catalogImplementation" = "in-memory"
 "spark.driver.host" = "127.0.0.1"
+"spark.driver.bindAddress" = "127.0.0.1"
