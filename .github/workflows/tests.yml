@@ -194,8 +194,9 @@ jobs:
           pip install pytest-spark>=0.6.0 pyarrow>=1.0.1
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-          pip install "${{ matrix.pandas }}" "${{ matrix.numpy }}"
+      - run: echo "ARROW_PRE_0_15_IPC_FORMAT=1" >> $GITHUB_ENV
       - run: make install
       - run: make install-spark-ci
+      - run: pip install "${{ matrix.pandas }}" "${{ matrix.numpy }}"
       - run: make test_cov
       - run: codecov -F python${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.pandas }}-${{ matrix.numpy }}
