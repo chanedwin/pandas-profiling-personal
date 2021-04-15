@@ -6,3 +6,4 @@ markers =  ["sparktest"]
 "spark.executor.instances" = 1
 "master" = "local[*]"
 "spark.sql.catalogImplementation" = "in-memory"
+"spark.driver.host" = "127.0.0.1"
