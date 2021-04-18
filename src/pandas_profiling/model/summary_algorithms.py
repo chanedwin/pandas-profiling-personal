@@ -774,7 +774,7 @@ def describe_categorical_spark_1d(
         words = config["vars"]["cat"]["words"]
         to_pandas_limit = config["spark"]["to_pandas_limit"].get(int)
         if words:
-            limited_series = series.sample.sample(to_pandas_limit)
+            limited_series = series.sample
             limited_series.astype(str)
             series_summary.update(word_summary(limited_series))
         # if coerce_str_to_date:

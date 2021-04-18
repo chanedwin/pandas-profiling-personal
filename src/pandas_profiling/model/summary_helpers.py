@@ -93,7 +93,7 @@ def _length_summary_pandas(series: pd.Series, summary: dict = {}) -> dict:
 
 @length_summary.register(SparkSeries)
 def _length_summary_spark(series: SparkSeries, summary: dict = {}) -> dict:
-    length = series.sample.str.len()
+    length = series.sample.dropna().str.len()
 
     summary.update({"length": length})
     summary.update(named_aggregate_summary(series, "length"))
