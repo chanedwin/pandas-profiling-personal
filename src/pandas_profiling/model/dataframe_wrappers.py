@@ -159,19 +159,6 @@ class GenericDataFrame(ABC):
         pass
 
     @abstractmethod
-    def sample(self, n, with_replacement=True):
-        """
-        Return a sample of dataframe
-        Args:
-            n: number of rows to sample
-            with_replacement: boolean true or false
-
-        Returns:
-
-        """
-        pass
-
-    @abstractmethod
     def __len__(self) -> int:
         """
         Get the number of rows in a dataframe as an int
