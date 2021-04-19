@@ -3,7 +3,6 @@ from typing import List
 
 import attr
 
-from pandas_profiling.config import config
 from pandas_profiling.model.dataframe_wrappers import (
     GenericDataFrame,
     PandasDataFrame,
@@ -24,52 +23,8 @@ def get_sample(df: GenericDataFrame) -> List[Sample]:
     raise NotImplementedError("This method is not implemented.")
 
 
-@get_sample.register(PandasDataFrame)
-def _get_sample_pandas(df: PandasDataFrame) -> List[Sample]:
-    """Obtains a sample from head and tail of the DataFrame
+from pandas_profiling.model.sample_pandas import get_sample_pandas
+from pandas_profiling.model.sample_spark import get_sample_spark
 
-    Args:
-        df: the pandas DataFrame
-
-    Returns:
-        a list of Sample objects
-    """
-    samples: List[Sample] = []
-    if len(df) == 0:
-        return samples
-
-    n_head = config["samples"]["head"].get(int)
-    if n_head > 0:
-        samples.append(Sample("head", df.head(n=n_head), "First rows"))
-
-    n_tail = config["samples"]["tail"].get(int)
-    if n_tail > 0:
-        samples.append(Sample("tail", df.tail(n=n_tail), "Last rows"))
-
-    n_random = config["samples"]["random"].get(int)
-    if n_random > 0:
-        samples.append(Sample("random", df.sample(n=n_random), "Random sample"))
-
-    return samples
-
-
-@get_sample.register(SparkDataFrame)
-def _get_sample_spark(df: SparkDataFrame) -> List[Sample]:
-    """Obtains a sample from head and tail of the DataFrame
-
-    Args:
-        df: the pandas DataFrame
-
-    Returns:
-        a list of Sample objects
-    """
-    samples = []
-    n_head = config["samples"]["head"].get(int)
-    if n_head > 0:
-        samples.append(Sample("head", df.head(n=n_head), "First rows"))
-
-    n_random = config["samples"]["random"].get(int)
-    if n_random > 0:
-        samples.append(Sample("random", df.sample, "Random sample"))
-
-    return samples
+get_sample.register(PandasDataFrame, get_sample_pandas)
+get_sample.register(SparkDataFrame, get_sample_spark)

@@ -469,9 +469,6 @@ class SparkDataFrame(GenericDataFrame):
     def head(self, n):
         return pd.DataFrame(self.df.head(n), columns=self.columns)
 
-    def sample(self, n, with_replacement=True):
-        return self.sample.sample(n=n, replace=with_replacement)
-
     def __len__(self) -> int:
         return self.n_rows
 

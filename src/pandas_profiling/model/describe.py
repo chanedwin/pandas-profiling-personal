@@ -14,9 +14,9 @@ from pandas_profiling.model.dataframe_wrappers import (
     get_appropriate_wrapper,
 )
 from pandas_profiling.model.duplicates import get_duplicates
+from pandas_profiling.model.messages import get_messages
 from pandas_profiling.model.sample import Sample, get_sample
 from pandas_profiling.model.summary import (
-    get_messages,
     get_missing_diagrams,
     get_scatter_matrix,
     get_series_descriptions,
