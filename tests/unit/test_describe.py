@@ -3,11 +3,11 @@ import datetime
 import numpy as np
 import pytest
 
+import pandas_profiling
 from pandas_profiling.config import config as config
 from pandas_profiling.model.describe import describe
 from pandas_profiling.model.summary import *
 from pandas_profiling.model.typeset import DateTime, Numeric, SparkNumeric
-import pandas_profiling
 
 check_is_NaN = "pandas_profiling.check_is_NaN"
 

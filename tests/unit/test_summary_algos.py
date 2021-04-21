@@ -5,7 +5,6 @@ import pytest
 from pandas_profiling.model.dataframe_wrappers import SparkDataFrame
 from pandas_profiling.model.summary_algorithms import (
     describe_boolean_1d,
-    describe_boolean_spark_1d,
     describe_counts,
     describe_generic,
     describe_supported,
@@ -30,7 +29,7 @@ def test_count_summary_category():
         ["Poor", "Neutral"] + [np.nan] * 100,
         categories=["Poor", "Neutral", "Excellent"],
     )
-    sn, r = describe_counts(s, {})
+    sn, r = describe_counts(pd.Series(s), {})
     assert len(r["value_counts_without_nan"].index) == 2
 
 
@@ -71,7 +70,7 @@ def test_boolean_count_spark(spark_session):
     sdf = spark_session.createDataFrame(
         pd.DataFrame([{"Hello": True}, {"Hello": False}, {"Hello": True}])
     )
-    _, results = describe_boolean_spark_1d(
+    _, results = describe_boolean_1d(
         SparkDataFrame(sdf),
         {"Hello": {"value_counts_without_nan": pd.Series({True: 2, False: 1})}},
     )
