@@ -11,7 +11,6 @@ from visions.utils import nullable_series_contains
 from visions.utils.series_utils import series_not_empty
 
 from pandas_profiling.config import config
-from pandas_profiling.model.series_wrappers import SparkSeries
 from pandas_profiling.model.typeset_relations import (
     category_is_numeric,
     category_to_numeric,
