@@ -68,7 +68,7 @@ def describe_counts(series: pd.Series, summary: dict) -> Tuple[pd.Series, dict]:
 def series_hashable(fn):
     @functools.wraps(fn)
     def inner(series, summary):
-        if not summary["hashable"]:
+        if "hashable" not in summary:
             return series, summary
         return fn(series, summary)
 
@@ -167,7 +167,7 @@ def numeric_stats_numpy(present_values, series, series_description):
 def numeric_stats_spark(series: SparkSeries):
     import pyspark.sql.functions as F
 
-    numeric_results_df = (
+    results = (
         series.dropna.select(
             F.mean(series.name).alias("mean"),
             F.stddev(series.name).alias("std"),
@@ -178,22 +178,8 @@ def numeric_stats_spark(series: SparkSeries):
             F.skewness(series.name).alias("skewness"),
             F.sum(series.name).alias("sum"),
         )
-        .toPandas()
-        .T
+        .toPandas().loc[0].to_dict()
     )
-
-    results = {
-        "mean": numeric_results_df.loc["mean"][0],
-        "std": numeric_results_df.loc["std"][0],
-        "variance": numeric_results_df.loc["variance"][0],
-        "min": numeric_results_df.loc["min"][0],
-        "max": numeric_results_df.loc["max"][0],
-        # Unbiased kurtosis obtained using Fisher's definition (kurtosis of normal == 0.0). Normalized by N-1.
-        "kurtosis": numeric_results_df.loc["kurtosis"][0],
-        # Unbiased skew normalized by N-1
-        "skewness": numeric_results_df.loc["skewness"][0],
-        "sum": numeric_results_df.loc["sum"][0],
-    }
 
     return results
 
@@ -718,3 +704,55 @@ def describe_boolean_spark_1d(
     summary.update({"top": value_counts.index[0], "freq": value_counts.iloc[0]})
 
     return series, summary
+
+
+def describe_timestamp_spark_1d(
+    series: SparkSeries, summary: dict
+) -> Tuple[SparkSeries, dict]:
+    """Describe a boolean series.
+
+    Args:
+        series: The Series to describe.
+        summary: The dict containing the series description so far.
+
+    Returns:
+        A dict containing calculated series description values.
+    """
+
+    import pyspark.sql.functions as F
+
+    series.persist()
+    # Only run if at least 1 non-missing value
+    value_counts = summary["value_counts_without_nan"]
+
+    finite_values_counts = value_counts[np.isfinite(value_counts)]
+
+    summary.update(
+        histogram_compute(
+            finite_values_counts, summary["n_distinct"], name="histogram_frequencies"
+        )
+    )
+
+    numeric_results_df = (
+        series.dropna.select(
+            F.min(series.name).alias("min"),
+            F.max(series.name).alias("max"),
+        )
+        .toPandas().loc[0].to_dict()
+    )
+
+    stats = summary
+    stats.update(numeric_results_df)
+    stats["range"] = stats["max"] - stats["min"]
+
+    # cast date to timestamp, it could be improve
+    values = pd.to_datetime(value_counts.index.values, infer_datetime_format=True).astype(np.int64) // 10 ** 9
+
+    stats.update(
+        histogram_compute(
+            values,
+            summary["n_distinct"],
+            weights=value_counts.values,
+        )
+    )
+    return series, stats

@@ -23,6 +23,7 @@ from pandas_profiling.model.summary_algorithms import (
     describe_supported,
     describe_supported_spark,
     describe_url_1d,
+    describe_timestamp_spark_1d,
 )
 from pandas_profiling.model.typeset import (
     URL,
@@ -36,6 +37,7 @@ from pandas_profiling.model.typeset import (
     SparkBoolean,
     SparkCategorical,
     SparkNumeric,
+    SparkDateTime,
     SparkUnsupported,
     Unsupported,
 )
@@ -122,6 +124,13 @@ class PandasProfilingSummarizer(BaseSummarizer):
                 describe_generic_spark,
                 describe_supported_spark,
                 describe_boolean_spark_1d,
+            ],
+            SparkDateTime: [
+                # need to include everything here, because we don't
+                describe_counts_spark,
+                describe_generic_spark,
+                describe_supported_spark,
+                describe_timestamp_spark_1d,
             ],
         }
         super().__init__(summary_map, typeset, *args, **kwargs)
