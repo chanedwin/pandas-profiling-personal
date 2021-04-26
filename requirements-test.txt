@@ -8,8 +8,7 @@ pytest-mypy>=0.7.0
 mypy>=0.761
 
 pytest-cov
-pytest-benchmark~=3.2.3
-pytest-black
+pytest-benchmark~=3.4.1
 nbval
 pyarrow
 flake8
